@@ -1,0 +1,3 @@
+[submodule "util/licenses/license-list-data"]
+	path = util/licenses/license-list-data
+	url = https://github.com/spdx/license-list-data/

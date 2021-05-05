@@ -10,7 +10,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/purpleidea/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/interfaces"
 
 	"github.com/purpleidea/mgmt/util/errwrap"
 	//gitConfig "github.com/go-git/go-git/config" // with go modules disabled

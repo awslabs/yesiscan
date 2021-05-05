@@ -3,7 +3,7 @@ package licenses_test
 import (
 	"testing"
 
-	"github.com/purpleidea/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/util/licenses"
 )
 
 func TestValidate(t *testing.T) {

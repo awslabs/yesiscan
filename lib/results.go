@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/purpleidea/yesiscan/interfaces"
-	"github.com/purpleidea/yesiscan/util"
-	"github.com/purpleidea/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util"
+	"github.com/awslabs/yesiscan/util/licenses"
 )
 
 const (

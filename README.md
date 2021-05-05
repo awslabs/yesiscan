@@ -2,7 +2,7 @@
 
 [![yesiscan!](art/yesiscan.png)](art/)
 
-[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/purpleidea/yesiscan/)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/awslabs/yesiscan/)
 
 ## About
 

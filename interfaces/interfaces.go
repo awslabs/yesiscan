@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/purpleidea/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/util/licenses"
 
 	"github.com/purpleidea/mgmt/util/errwrap"
 	"github.com/purpleidea/mgmt/util/safepath"

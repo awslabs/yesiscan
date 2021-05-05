@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/purpleidea/yesiscan/interfaces"
-	"github.com/purpleidea/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util/licenses"
 
 	"github.com/purpleidea/mgmt/util/errwrap"
 )

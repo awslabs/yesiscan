@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/purpleidea/yesiscan/backend"
-	"github.com/purpleidea/yesiscan/interfaces"
-	"github.com/purpleidea/yesiscan/lib"
-	"github.com/purpleidea/yesiscan/parser"
+	"github.com/awslabs/yesiscan/backend"
+	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/lib"
+	"github.com/awslabs/yesiscan/parser"
 
 	"github.com/purpleidea/mgmt/util/errwrap"
 	"github.com/purpleidea/mgmt/util/safepath"

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/purpleidea/yesiscan/interfaces"
-	"github.com/purpleidea/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util/licenses"
 
 	"github.com/google/licenseclassifier"
 	"github.com/google/licenseclassifier/tools/identify_license/backend"

@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/purpleidea/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/interfaces"
 
 	"github.com/purpleidea/mgmt/util/errwrap"
 	"github.com/purpleidea/mgmt/util/safepath"

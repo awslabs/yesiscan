@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/purpleidea/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/interfaces"
 
 	"github.com/purpleidea/mgmt/util/safepath"
 )

@@ -1,4 +1,4 @@
-module github.com/purpleidea/yesiscan
+module github.com/awslabs/yesiscan
 
 go 1.16
 

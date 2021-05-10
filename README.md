@@ -153,7 +153,7 @@ perusing logs.
 
 ## Legal
 
-Copyright (C) Amazon.ca and the `yesiscan` project contributors
+Copyright Amazon.com Inc or its affiliates and the yesiscan project contributors
 Written by James Shubin <purple@amazon.com> and the project contributors
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use

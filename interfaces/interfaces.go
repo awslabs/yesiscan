@@ -30,10 +30,9 @@ import (
 	"fmt"
 	"io/fs"
 
+	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/licenses"
-
-	"github.com/purpleidea/mgmt/util/errwrap"
-	"github.com/purpleidea/mgmt/util/safepath"
+	"github.com/awslabs/yesiscan/util/safepath"
 )
 
 // Error is a constant error type that implements error.

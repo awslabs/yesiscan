@@ -31,9 +31,8 @@ import (
 	"strings"
 
 	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/licenses"
-
-	"github.com/purpleidea/mgmt/util/errwrap"
 )
 
 const (

@@ -36,9 +36,9 @@ import (
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/parser"
+	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/safepath"
 
-	"github.com/purpleidea/mgmt/util/errwrap"
-	"github.com/purpleidea/mgmt/util/safepath"
 	cli "github.com/urfave/cli/v2" // imports as package "cli"
 )
 

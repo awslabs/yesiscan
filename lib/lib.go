@@ -28,9 +28,8 @@ import (
 	"sync"
 
 	"github.com/awslabs/yesiscan/interfaces"
-
-	"github.com/purpleidea/mgmt/util/errwrap"
-	"github.com/purpleidea/mgmt/util/safepath"
+	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/safepath"
 )
 
 // Core is the core runner logic that is used in Main to achieve the desired

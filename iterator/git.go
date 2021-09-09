@@ -31,14 +31,14 @@ import (
 	"sync"
 
 	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/safepath"
 
-	"github.com/purpleidea/mgmt/util/errwrap"
 	//"github.com/go-git/go-git" // with go modules disabled
 	// with go modules enabled (GO111MODULE=on or outside GOPATH)
 	git "github.com/go-git/go-git/v5" // with go modules enabled (GO111MODULE=on or outside GOPATH)
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/purpleidea/mgmt/util/safepath"
 )
 
 const (

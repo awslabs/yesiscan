@@ -28,13 +28,13 @@ import (
 	"sort"
 
 	"github.com/awslabs/yesiscan/interfaces"
+	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/licenses"
+	"github.com/awslabs/yesiscan/util/safepath"
 
 	"github.com/google/licenseclassifier"
 	"github.com/google/licenseclassifier/tools/identify_license/backend"
 	"github.com/google/licenseclassifier/tools/identify_license/results"
-	"github.com/purpleidea/mgmt/util/errwrap"
-	"github.com/purpleidea/mgmt/util/safepath"
 )
 
 // LicenseClassifier is based on the licenseclassifier project.

@@ -29,9 +29,8 @@ import (
 
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/iterator"
-
-	"github.com/purpleidea/mgmt/util/errwrap"
-	"github.com/purpleidea/mgmt/util/safepath"
+	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/safepath"
 )
 
 // TrivialURIParser takes input as a single string. It expects either a URL or a

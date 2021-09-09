@@ -26,8 +26,7 @@ import (
 	"io/fs"
 
 	"github.com/awslabs/yesiscan/interfaces"
-
-	"github.com/purpleidea/mgmt/util/safepath"
+	"github.com/awslabs/yesiscan/util/safepath"
 )
 
 var (

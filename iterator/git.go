@@ -287,7 +287,7 @@ func (obj *Git) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 
 	} else if err != nil {
 		obj.unlock()
-		return nil, errwrap.Wrapf(err, "error cloning repository")
+		return nil, errwrap.Wrapf(err, "error cloning repository %s", obj.String())
 	}
 
 	var hash plumbing.Hash

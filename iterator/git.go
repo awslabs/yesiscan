@@ -51,13 +51,13 @@ const (
 )
 
 var (
-	mapMutex *sync.Mutex
-	mutexes  map[string]*sync.Mutex
+	gitMapMutex *sync.Mutex
+	gitMutexes  map[string]*sync.Mutex
 )
 
 func init() {
-	mapMutex = &sync.Mutex{}
-	mutexes = make(map[string]*sync.Mutex)
+	gitMapMutex = &sync.Mutex{}
+	gitMutexes = make(map[string]*sync.Mutex)
 }
 
 // Git is an iterator that takes a git URL to clone and performs this download
@@ -238,13 +238,13 @@ func (obj *Git) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 	}
 	repoAbsDir := safepath.JoinToAbsDir(prefix, hashRelDir)
 
-	mapMutex.Lock()
-	mu, exists := mutexes[obj.URL]
+	gitMapMutex.Lock()
+	mu, exists := gitMutexes[obj.URL]
 	if !exists {
 		mu = &sync.Mutex{}
-		mutexes[obj.URL] = mu
+		gitMutexes[obj.URL] = mu
 	}
-	mapMutex.Unlock()
+	gitMapMutex.Unlock()
 
 	if obj.Debug {
 		obj.Logf("locking: %s", obj.String())

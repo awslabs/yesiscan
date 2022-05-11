@@ -126,7 +126,7 @@ func (obj *LicenseClassifier) ScanPath(ctx context.Context, path safepath.Path, 
 	//}
 	be.Close()
 	// This can give us multiple results, sorted by most confident.
-	result, err := resultHelper(results[0])
+	result, err := licenseclassifierResultHelper(results[0])
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (obj *LicenseClassifier) ScanPath(ctx context.Context, path safepath.Path, 
 	// Add more info about the others possibilities to the result.
 	more := []*interfaces.Result{}
 	for i := 1; i < len(results); i++ {
-		r, err := resultHelper(results[i])
+		r, err := licenseclassifierResultHelper(results[i])
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func (obj *LicenseClassifier) ScanPath(ctx context.Context, path safepath.Path, 
 	return result, nil
 }
 
-func resultHelper(result *results.LicenseType) (*interfaces.Result, error) {
+func licenseclassifierResultHelper(result *results.LicenseType) (*interfaces.Result, error) {
 	if result == nil {
 		return nil, fmt.Errorf("got nil result")
 	}

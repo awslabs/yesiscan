@@ -137,6 +137,8 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 
 	// it's a single file, not a directory
 	if !obj.Path.IsDir() {
+		absFile := safepath.UnsafeParseIntoAbsFile(obj.Path.Path())
+
 		// XXX: symlink detection?
 		fileInfo, err := os.Stat(obj.Path.Path()) // XXX: stat or Lstat?
 		if err != nil {
@@ -158,7 +160,37 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			FileInfo: fileInfo,
 			UID:      uid,
 		}
-		return nil, errwrap.Wrapf(scan(ctx, obj.Path, info), "single file scan func failed")
+
+		if absFile.HasExt(ZipExtension) {
+			iterator := &Zip{
+				Debug: obj.Debug,
+				Logf: func(format string, v ...interface{}) {
+					obj.Logf(format, v...) // TODO: add a prefix?
+				},
+				Prefix: obj.Prefix,
+
+				Iterator: obj,
+
+				Path: absFile,
+
+				AllowAnyExtension: false, // not helpful here
+			}
+
+			mu.Lock()
+			iterators = append(iterators, iterator)
+			mu.Unlock()
+			return iterators, nil
+		}
+
+		//return nil, errwrap.Wrapf(scan(ctx, obj.Path, info), "single file scan func failed")
+		// We want to ignore the ErrUnknownLicense results, and error if
+		// we hit any actual errors that we should bubble upwards.
+		if err := scan(ctx, obj.Path, info); err != nil && !errors.Is(err, interfaces.ErrUnknownLicense) {
+			// XXX: ShutdownOnError?
+			return nil, errwrap.Wrapf(err, "single file scan func failed")
+		}
+
+		return iterators, nil // iterators should be empty
 	}
 
 	// TODO: Replace this with a parallel walk for performance
@@ -211,6 +243,32 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 				obj.Logf("skipping: %s", safePath.String())
 			}
 			return err // nil to skip, interfaces.SkipDir, or error
+		}
+
+		if !safePath.IsDir() && safePath.IsAbs() {
+			absFile := safepath.UnsafeParseIntoAbsFile(safePath.Path())
+			if absFile.HasExt(ZipExtension) {
+				iterator := &Zip{
+					Debug: obj.Debug,
+					Logf: func(format string, v ...interface{}) {
+						obj.Logf(format, v...) // TODO: add a prefix?
+					},
+					Prefix: obj.Prefix,
+
+					Iterator: obj,
+
+					Path: absFile,
+
+					AllowAnyExtension: false, // not helpful here
+				}
+
+				mu.Lock()
+				iterators = append(iterators, iterator)
+				mu.Unlock()
+				// NOTE: if we return nil here, then we block
+				// any scanners that might want to handle a
+				// whole .zip file in one go specially...
+			}
 		}
 
 		if obj.Debug {

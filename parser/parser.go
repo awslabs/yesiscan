@@ -88,6 +88,30 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 	if err != nil {
 		return nil, errwrap.Wrapf(err, "could not parse URL")
 	}
+	s := u.String()
+
+	// TODO: consider adding HttpScheme as well (with a flag)
+	if u.Scheme == iterator.HttpScheme {
+		return nil, fmt.Errorf("plain http is currently blocked")
+	}
+
+	// this is a bit of a heuristic, but we'll go with it for now
+	// this is because we get https:// urls that are really github git URI's
+	if u.Scheme == iterator.HttpsSchemeRaw && strings.HasSuffix(s, iterator.ZipExtension) {
+		iterator := &iterator.Http{
+			Debug: obj.Debug,
+			Logf: func(format string, v ...interface{}) {
+				obj.Logf("iterator: "+format, v...)
+			},
+			Prefix:    obj.Prefix,
+			URL:       s,     // TODO: pass a *net.URL instead?
+			AllowHttp: false, // allow non-https ?
+
+			Parser: obj, // store a handle to the originator
+		}
+		iterators = append(iterators, iterator)
+		return iterators, nil
+	}
 
 	// TODO: for now, just assume it can only be a git iterator...
 	iterator := &iterator.Git{
@@ -96,7 +120,7 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 			obj.Logf("iterator: "+format, v...)
 		},
 		Prefix:        obj.Prefix,
-		URL:           u.String(), // TODO: pass a *net.URL instead?
+		URL:           s, // TODO: pass a *net.URL instead?
 		TrimGitSuffix: true,
 
 		Parser: obj, // store a handle to the originator

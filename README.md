@@ -45,9 +45,10 @@ it travels over. (More on scanning functions shortly.) In addition, the recurse
 method can also return new iterators. This allows iterators to be composable,
 and perform individual tasks succinctly. For example, the git iterator knows how
 to download and store git repositories, and then return a new file system
-iterator at the location where it cloned the repository. Future iterators will
-be able to decompress tar and gz archives, download files over http, look inside
-rpm's, and so much more.
+iterator at the location where it cloned the repository. The zip iterator knows
+how to decompress and unarchive zip files. The http iterator knows how to
+download a file over https. Future iterators will be able to decompress tar and
+gz archives, look inside rpm's, and so much more.
 
 ### Scanning
 
@@ -137,7 +138,7 @@ because the project uses git submodules. The project also uses the `go mod`
 system, but the author thinks that forcing developers to pin dependencies is a
 big mistake, and prefers the `vendor/`+ git submodules approach that was easy
 with earlier versions of golang. To build this project, you will need golang
-version `1.16` or greater. To build this project as a CLI, you will want to
+version `1.17` or greater. To build this project as a CLI, you will want to
 enter the `cmd/yesiscan/` directory and first run `go generate` to set the
 program name and build version. You can then produce the binary by running
 `go build`.

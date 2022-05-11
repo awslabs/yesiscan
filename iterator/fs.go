@@ -62,12 +62,12 @@ type Fs struct {
 
 	// Parser is a pointer to the parser that returned this. If it wasn't
 	// returned by a parser, leave this nil. If this iterator came from an
-	// iterator, then the Parent handle should be filled instead.
+	// iterator, then the Iterator handle should be filled instead.
 	Parser interfaces.Parser
 
 	// Iterator is a pointer to the iterator that returned this. If it
 	// wasn't returned by an iterator, leave this nil. If this iterator came
-	// from a parser, then that the Parser handle should be filled instead.
+	// from a parser, then the Parser handle should be filled instead.
 	Iterator interfaces.Iterator
 
 	// Path is the location of the fs to walk.
@@ -171,6 +171,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			return errwrap.Wrapf(err, "fail inside walk with: %s", path)
 		}
 
+		// XXX: rename so we don't confuse safePath with safepath
 		safePath, err := safepath.ParseIntoPath(path, fileInfo.IsDir())
 		if err != nil {
 			return err

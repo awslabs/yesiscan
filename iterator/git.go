@@ -82,12 +82,12 @@ type Git struct {
 
 	// Parser is a pointer to the parser that returned this. If it wasn't
 	// returned by a parser, leave this nil. If this iterator came from an
-	// iterator, then the Parent handle should be filled instead.
+	// iterator, then the Iterator handle should be filled instead.
 	Parser interfaces.Parser
 
 	// Iterator is a pointer to the iterator that returned this. If it
 	// wasn't returned by an iterator, leave this nil. If this iterator came
-	// from a parser, then that the Parser handle should be filled instead.
+	// from a parser, then the Parser handle should be filled instead.
 	Iterator interfaces.Iterator
 
 	// URL is the git URL of the repository that we want to clone from.

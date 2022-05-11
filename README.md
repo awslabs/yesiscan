@@ -50,6 +50,31 @@ how to decompress and unarchive zip files. The http iterator knows how to
 download a file over https. Future iterators will be able to decompress tar and
 gz archives, look inside rpm's, and so much more.
 
+#### fs
+
+The filesystem iterator knows how to find git submodules, zip files, and open
+regular files for scanning. It is the cornerstone of all the iterators as we
+eventually end up with an fs iterator to do the actual work.
+
+#### zip
+
+The zip iterator can decompress and extract zip files. It uses a heuristic to
+decide whether a file should be extracted or not. It usually does the right
+thing, but if you can find a corner case where it does not, please let us know.
+
+#### http
+
+The http iterator can download files from http sources. Because many git sources
+actually present as https URL's, we use a heuristic to decide what to download.
+If you aren't getting the behaviour you expect, please let us know. Plain http
+(not https) urls are disabled by default.
+
+#### git
+
+The git iterator is able to recursively clone all of your git repository needs.
+It does this with a pure-golang implementation to avoid you needing a special
+installation on your machine.
+
 ### Scanning
 
 The scanning function is the core place where the coordination of work is done.
@@ -88,6 +113,36 @@ snippet repositories, internal corporate ticket systems, and so on. Even if your
 backend isn't generally useful worldwide, we'd like you to consider submitting
 and maintaining it here in this repository so that we can share ideas, and
 potentially get new ideas about design and API limitations from doing so.
+
+#### Google License Classifier
+
+The google license classifier backend wraps the [google license classifier](https://github.com/google/licenseclassifier)
+project. It is a pure golang backend which is nice, although the API does use
+files on disk for intermediate processing which is suboptimal for most cases,
+although makes examination of incredibly large files possible. Some of the
+results are spurious so use it with a lower confidence interval.
+
+#### SPDX
+
+This is a simple pure-golang, SPDX parser. It should find anything that is a
+valid SPDX identifier. It was written from scratch for this project since the
+upstream version wasn't optimal. It shouldn't have any bugs, but if you find
+any issues, please report them!
+
+#### Askalono
+
+This wraps the [askalono](https://github.com/jpeddicord/askalono/) project which
+is written in rust. It shells out to the binary to accomplish the work. There's
+no reason this couldn't be easily replaced with a pure-golang version, although
+we decided to use this because it was already built and it serves as a good
+example on how to write a backend that runs an exec. Due to a limitation of the
+tool, it cannot properly detect more than one license in a file at a time. As a
+result, benefit from its output, but make sure to use other backends in
+conjunction with this one. The `askalono` binary needs to be installed into your
+`$PATH` for this to work. To install it run: `cargo install askalono-cli`. It
+will download and build a version for you and put it into `~/.cargo/bin/`.
+Either add that directory to your `$PATH` or copy the `askalono` binary to
+somewhere appropriate like `~/bin/`.
 
 ### Caching
 

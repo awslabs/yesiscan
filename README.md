@@ -168,6 +168,13 @@ performance when running on large quantities of files, using the directory
 interface, and also perhaps even spawning it as a server. Re-writing the core
 detection algorithm in golang would be a valuable project.
 
+#### Bitbake
+
+Bitbake is a build system that is commonly used by the yocto project. It has
+these `.bb` metadata files that contain `LICENSE=` tags. This backend looks for
+them and includes them in the result. It tries to read them as SPDX ID's where
+possible.
+
 ### Caching
 
 The caching layer will be coming soon! Please stay tuned =D

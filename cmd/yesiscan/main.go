@@ -66,6 +66,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "no-backend-spdx"},
 			&cli.BoolFlag{Name: "no-backend-askalono"},
 			&cli.BoolFlag{Name: "no-backend-scancode"},
+			&cli.BoolFlag{Name: "no-backend-bitbake"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
 		},
 	}
@@ -193,6 +194,17 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		}
 		backends = append(backends, scancodeBackend)
 		backendWeights[scancodeBackend] = 8.0 // TODO: adjust as needed
+	}
+
+	if !c.Bool("no-backend-bitbake") {
+		bitbakeBackend := &backend.Bitbake{
+			Debug: debug,
+			Logf: func(format string, v ...interface{}) {
+				logf("backend: "+format, v...)
+			},
+		}
+		backends = append(backends, bitbakeBackend)
+		backendWeights[bitbakeBackend] = 16.0 // TODO: adjust as needed
 	}
 
 	//if !c.Bool("no-backend-example") {

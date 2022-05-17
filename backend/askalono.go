@@ -37,6 +37,11 @@ import (
 	"github.com/awslabs/yesiscan/util/safepath"
 )
 
+const (
+	// AskalonoProgram is the name of the askalono executable.
+	AskalonoProgram = "askalono"
+)
+
 // Askalono is based on the rust askalono project. It uses the Sørensen–Dice
 // coefficient for license comparison. It would be pretty easy, and preferable
 // to use one of the many pre-existing golang Sørensen–Dice implementations and
@@ -72,15 +77,14 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	program := "askalono"
 	// yes the args need to go in this order, nothing else works...
 	args := []string{"--format", "json", "identify", "--optimize", filename}
 
-	obj.Logf("running: %s %s", program, strings.Join(args, " "))
+	obj.Logf("running: %s %s", AskalonoProgram, strings.Join(args, " "))
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, AskalonoProgram, args...)
 
 	cmd.Dir = ""
 	cmd.Env = []string{}

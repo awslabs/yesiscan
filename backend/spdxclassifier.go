@@ -115,6 +115,8 @@ func (obj *SPDXClassifier) ScanData(ctx context.Context, data []byte, info *inte
 		// NOTE: this is NOT the same as interfaces.ErrUnknownLicense
 		// because in this scenario, we're comfortable (ish) the parser
 		// is exhaustive at finding a license with this methodology.
+		// We want to return nil, but we error only if Scanner.Err() did
+		// and so normally this returns nil, nil.
 		return nil, errwrap.Wrapf(scanner.Err(), "spdx scanner error")
 	}
 

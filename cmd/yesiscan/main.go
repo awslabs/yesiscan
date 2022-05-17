@@ -201,12 +201,12 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		ShutdownOnError: false,     // set to true for "perfect" scanning.
 	}
 
-	if err := core.Init(); err != nil {
-		return errwrap.Wrapf(err, "could not initialize core")
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	if err := core.Init(ctx); err != nil {
+		return errwrap.Wrapf(err, "could not initialize core")
+	}
 
 	results, err := core.Run(ctx)
 	if err != nil {

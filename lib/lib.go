@@ -48,9 +48,19 @@ type Core struct {
 	ShutdownOnError bool
 }
 
-// Init initializes the core struct before use.
-// TODO: remove if unused
-func (obj *Core) Init() error {
+// Init initializes and validates the core struct before use.
+func (obj *Core) Init(ctx context.Context) error {
+	obj.Logf("validating %d backends...", len(obj.Backends))
+	for _, backend := range obj.Backends {
+		vb, ok := backend.(interfaces.ValidateBackend)
+		if !ok {
+			continue
+		}
+		if err := vb.Validate(ctx); err != nil {
+			return errwrap.Wrapf(err, "backend validate failed")
+		}
+	}
+
 	return nil
 }
 

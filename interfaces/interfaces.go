@@ -128,6 +128,16 @@ type Backend interface {
 	fmt.Stringer
 }
 
+// ValidateBackend adds a method that can be run if the backend has some initial
+// one-time validation or setup to do. It should always be safe and idempotent.
+type ValidateBackend interface {
+	Backend
+
+	// Validate runs an operation to check if things are okay. It should be
+	// idempotent and generally safe to run.
+	Validate(ctx context.Context) error
+}
+
 // DataBackend is the extended backend that is most efficient for receiving data
 // since all the reads are done once, and each backend only has to read from one
 // memory address. You should implement this backend if you can. It assumes that

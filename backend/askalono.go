@@ -66,6 +66,25 @@ func (obj *Askalono) String() string {
 	return "askalono"
 }
 
+func (obj *Askalono) Validate(ctx context.Context) error {
+	// This runs --help to check this is in the path and running properly.
+
+	args := []string{"--help"}
+
+	obj.Logf("running: %s %s", AskalonoProgram, strings.Join(args, " "))
+
+	// TODO: do we need to do the ^C handling?
+	// XXX: is the ^C context cancellation propagating into this correctly?
+	cmd := exec.CommandContext(ctx, AskalonoProgram, args...)
+	cmd.Dir = ""
+	cmd.Env = []string{}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+		Pgid:    0,
+	}
+	return cmd.Run()
+}
+
 func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *interfaces.Info) (*interfaces.Result, error) {
 
 	if info.FileInfo.IsDir() { // path.IsDir() should be the same.

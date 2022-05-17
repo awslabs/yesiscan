@@ -216,3 +216,14 @@ func Join(licenses []*License) string {
 	}
 	return strings.Join(xs, ", ")
 }
+
+// InList returns true if a license exists inside a list, otherwise false. It
+// uses the license Cmp method to determine equality.
+func InList(needle *License, haystack []*License) bool {
+	for _, x := range haystack {
+		if needle.Cmp(x) == nil {
+			return true
+		}
+	}
+	return false
+}

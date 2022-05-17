@@ -50,14 +50,22 @@ type Core struct {
 
 // Init initializes and validates the core struct before use.
 func (obj *Core) Init(ctx context.Context) error {
-	obj.Logf("validating %d backends...", len(obj.Backends))
+	i := 0 // count first so we get a more accurate validation message
+	for _, backend := range obj.Backends {
+		_, ok := backend.(interfaces.ValidateBackend)
+		if !ok {
+			continue
+		}
+		i++
+	}
+	obj.Logf("validating %d backends...", i)
 	for _, backend := range obj.Backends {
 		vb, ok := backend.(interfaces.ValidateBackend)
 		if !ok {
 			continue
 		}
 		if err := vb.Validate(ctx); err != nil {
-			return errwrap.Wrapf(err, "backend validate failed")
+			return errwrap.Wrapf(err, "backend %s validate failed", vb.String())
 		}
 	}
 

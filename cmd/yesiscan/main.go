@@ -65,6 +65,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},
 			&cli.BoolFlag{Name: "no-backend-spdx"},
 			&cli.BoolFlag{Name: "no-backend-askalono"},
+			&cli.BoolFlag{Name: "no-backend-scancode"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
 		},
 	}
@@ -178,6 +179,20 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		}
 		backends = append(backends, askalonoBackend)
 		backendWeights[askalonoBackend] = 4.0 // TODO: adjust as needed
+	}
+
+	if !c.Bool("no-backend-scancode") {
+		scancodeBackend := &backend.Scancode{
+			Debug: debug,
+			Logf: func(format string, v ...interface{}) {
+				logf("backend: "+format, v...)
+			},
+
+			// useful for testing before we add file name filtering
+			//SkipZeroResults: true,
+		}
+		backends = append(backends, scancodeBackend)
+		backendWeights[scancodeBackend] = 8.0 // TODO: adjust as needed
 	}
 
 	//if !c.Bool("no-backend-example") {

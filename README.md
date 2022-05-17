@@ -144,6 +144,30 @@ will download and build a version for you and put it into `~/.cargo/bin/`.
 Either add that directory to your `$PATH` or copy the `askalono` binary to
 somewhere appropriate like `~/bin/`.
 
+#### Scancode
+
+This wraps the [ScanCode](https://github.com/nexB/scancode-toolkit) project
+which is written mostly in python. It is a venerable project in this space, but
+it is slower than the other tools and is a bit clunky to install. To install it
+first download the latest release, then extract it into `/opt/scancode/` and
+then add a symlink to main entrypoint in your `~/bin/` so that it shows up in
+your $PATH where we look for it. Run it with `--help` once to get it to
+initialize if you want. This looks roughly like this:
+
+```
+wget https://github.com/nexB/scancode-toolkit/releases/download/v30.1.0/scancode-toolkit-30.1.0_py36-linux.tar.xz
+tar -xf scancode-toolkit-30.1.0_py36-linux.tar.xz
+sudo mv scancode-toolkit-30.1.0/ /opt/scancode/
+cd ~/bin/ && ln -s /opt/scancode/scancode
+cd - && rm scancode-toolkit-30.1.0_py36-linux.tar.xz
+scancode --help
+```
+
+In the future a more optimized scancode backend could be written to improve
+performance when running on large quantities of files, using the directory
+interface, and also perhaps even spawning it as a server. Re-writing the core
+detection algorithm in golang would be a valuable project.
+
 ### Caching
 
 The caching layer will be coming soon! Please stay tuned =D

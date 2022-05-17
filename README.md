@@ -122,7 +122,7 @@ files on disk for intermediate processing which is suboptimal for most cases,
 although makes examination of incredibly large files possible. Some of the
 results are spurious so use it with a lower confidence interval.
 
-#### SPDX
+#### Spdx
 
 This is a simple pure-golang, SPDX parser. It should find anything that is a
 valid SPDX identifier. It was written from scratch for this project since the

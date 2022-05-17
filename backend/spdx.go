@@ -48,19 +48,19 @@ var (
 	stripTrashSPDX = regexp.MustCompile(`[^\w\s\d.\-\+()]+`)
 )
 
-// SPDXClassifier is based on the Software Package Data Exchange project. It is
-// build with a slightly objectionable parser as prescribed in the official
-// tools repo.
-type SPDXClassifier struct {
+// Spdx is based on the Software Package Data Exchange project. It is built
+// with a slightly objectionable parser as prescribed in the official tools
+// repo.
+type Spdx struct {
 	Debug bool
 	Logf  func(format string, v ...interface{})
 }
 
-func (obj *SPDXClassifier) String() string {
+func (obj *Spdx) String() string {
 	return "spdx"
 }
 
-func (obj *SPDXClassifier) ScanData(ctx context.Context, data []byte, info *interfaces.Info) (*interfaces.Result, error) {
+func (obj *Spdx) ScanData(ctx context.Context, data []byte, info *interfaces.Info) (*interfaces.Result, error) {
 	if info.FileInfo.IsDir() {
 		return nil, nil // skip
 	}

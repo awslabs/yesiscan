@@ -157,7 +157,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	}
 
 	if !c.Bool("no-backend-spdx") {
-		spdxBackend := &backend.SPDXClassifier{
+		spdxBackend := &backend.Spdx{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
 				logf("backend: "+format, v...)

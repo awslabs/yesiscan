@@ -105,7 +105,7 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	var askalonoOutput AskalonoOutput // this gets populated during decode
 	if err := decoder.Decode(&askalonoOutput); err != nil {
-		panic(fmt.Sprintf("error decoding spdx license list: %+v", err))
+		panic(fmt.Sprintf("error decoding askalono json output: %+v", err))
 	}
 
 	if askalonoOutput.Path != "" && askalonoOutput.Path != filename {

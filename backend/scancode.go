@@ -64,7 +64,7 @@ func (obj *Scancode) String() string {
 	return "scancode"
 }
 
-func (obj *Scancode) Validate(ctx context.Context) error {
+func (obj *Scancode) Setup(ctx context.Context) error {
 	// This runs --help the first time to warm up scancode and finish the
 	// setup in case it wasn't done previously. This is a silly way for it
 	// to be built, but we'll go with it for now. This also checks that it

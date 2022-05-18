@@ -128,14 +128,17 @@ type Backend interface {
 	fmt.Stringer
 }
 
-// ValidateBackend adds a method that can be run if the backend has some initial
+// SetupBackend adds a method that can be run if the backend has some initial
 // one-time validation or setup to do. It should always be safe and idempotent.
-type ValidateBackend interface {
+type SetupBackend interface {
 	Backend
 
-	// Validate runs an operation to check if things are okay. It should be
-	// idempotent and generally safe to run.
-	Validate(ctx context.Context) error
+	// Setup runs an operation to check if things are okay. It should be
+	// idempotent and generally safe to run. It can perform validation
+	// operations and return false if anything went wrong. You should cancel
+	// any work you are doing as fast as possible if the context is
+	// cancelled.
+	Setup(ctx context.Context) error
 }
 
 // DataBackend is the extended backend that is most efficient for receiving data

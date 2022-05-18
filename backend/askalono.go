@@ -70,7 +70,7 @@ func (obj *Askalono) String() string {
 	return "askalono"
 }
 
-func (obj *Askalono) Validate(ctx context.Context) error {
+func (obj *Askalono) Setup(ctx context.Context) error {
 	// This runs --help to check this is in the path and running properly.
 
 	args := []string{"--help"}

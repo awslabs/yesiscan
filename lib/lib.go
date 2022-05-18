@@ -52,20 +52,20 @@ type Core struct {
 func (obj *Core) Init(ctx context.Context) error {
 	i := 0 // count first so we get a more accurate validation message
 	for _, backend := range obj.Backends {
-		_, ok := backend.(interfaces.ValidateBackend)
+		_, ok := backend.(interfaces.SetupBackend)
 		if !ok {
 			continue
 		}
 		i++
 	}
-	obj.Logf("validating %d backends...", i)
+	obj.Logf("setup for %d backends...", i)
 	for _, backend := range obj.Backends {
-		vb, ok := backend.(interfaces.ValidateBackend)
+		vb, ok := backend.(interfaces.SetupBackend)
 		if !ok {
 			continue
 		}
-		if err := vb.Validate(ctx); err != nil {
-			return errwrap.Wrapf(err, "backend %s validate failed", vb.String())
+		if err := vb.Setup(ctx); err != nil {
+			return errwrap.Wrapf(err, "backend %s setup failed", vb.String())
 		}
 	}
 

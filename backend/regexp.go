@@ -66,8 +66,7 @@ func (obj *Regexp) String() string {
 	return "regexp"
 }
 
-// TODO: rename Validate to Setup
-func (obj *Regexp) Validate(ctx context.Context) error {
+func (obj *Regexp) Setup(ctx context.Context) error {
 	for i, x := range obj.Rules {
 		r, err := regexp.Compile(x.Pattern)
 		if err != nil {

@@ -123,6 +123,7 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 	out, reterr := cmd.Output()
 	if reterr != nil {
 		obj.Logf("error running: %s", prog)
+		// XXX: bug: https://github.com/jpeddicord/askalono/issues/74
 		// don't error here because it might be askalono erroring but
 		// still returning output as an error message... it should not
 		// have been written this way, but askalono team probably won't
@@ -131,6 +132,11 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 	}
 
 	buffer := bytes.NewBuffer(out)
+	if buffer.Len() == 0 {
+		// XXX: bug: https://github.com/jpeddicord/askalono/issues/74
+		obj.Logf("askalono EOF bug, skipped: %s", filename)
+		return nil, nil // skip, unfortunately
+	}
 	decoder := json.NewDecoder(buffer)
 
 	var askalonoOutput AskalonoOutput // this gets populated during decode

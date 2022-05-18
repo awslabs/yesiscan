@@ -99,7 +99,9 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 	// yes the args need to go in this order, nothing else works...
 	args := []string{"--format", "json", "identify", "--optimize", filename}
 
-	obj.Logf("running: %s %s", AskalonoProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", AskalonoProgram, strings.Join(args, " "))
+
+	obj.Logf("running: %s", prog)
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
@@ -116,7 +118,7 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, errwrap.Wrapf(err, "cannot run command")
+		return nil, errwrap.Wrapf(err, "error running: %s", prog)
 	}
 
 	buffer := bytes.NewBuffer(out)

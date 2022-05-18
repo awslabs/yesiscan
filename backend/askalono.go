@@ -141,7 +141,8 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	var askalonoOutput AskalonoOutput // this gets populated during decode
 	if err := decoder.Decode(&askalonoOutput); err != nil {
-		panic(fmt.Sprintf("error decoding askalono json output: %+v", err))
+		// programming error, report this to us please
+		return nil, errwrap.Wrapf(err, "error decoding askalono json output")
 	}
 
 	if askalonoOutput.Path != "" && askalonoOutput.Path != filename {

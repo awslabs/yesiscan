@@ -128,7 +128,8 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	var scancodeOutput ScancodeOutput // this gets populated during decode
 	if err := decoder.Decode(&scancodeOutput); err != nil {
-		panic(fmt.Sprintf("error decoding scancode output: %+v", err))
+		// programming error, report this to us please
+		return nil, errwrap.Wrapf(err, "error decoding scancode json output")
 	}
 
 	if len(scancodeOutput.Files) == 0 {

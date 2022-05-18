@@ -67,6 +67,8 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "no-backend-askalono"},
 			&cli.BoolFlag{Name: "no-backend-scancode"},
 			&cli.BoolFlag{Name: "no-backend-bitbake"},
+			&cli.BoolFlag{Name: "no-backend-regexp"},
+			&cli.StringFlag{Name: "regexp-path"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
 		},
 	}
@@ -205,6 +207,36 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		}
 		backends = append(backends, bitbakeBackend)
 		backendWeights[bitbakeBackend] = 16.0 // TODO: adjust as needed
+	}
+
+	regexpPath := ""
+	if !c.Bool("no-backend-regexp") {
+		if c.IsSet("regexp-path") {
+			regexpPath = c.String("regexp-path")
+		} else {
+			// TODO: implement proper XDG and maybe path precedence?
+			home, err := os.UserHomeDir()
+			if err != nil {
+				logf("error finding home directory: %+v", err)
+			} else {
+				regexpPath = filepath.Join(home, ".config/", program+"/", "regexp.json")
+				regexpPath = filepath.Clean(regexpPath)
+			}
+		}
+	}
+	if regexpPath != "" {
+		regexpBackend := &backend.Regexp{
+			RegexpCore: &backend.RegexpCore{
+				Debug: debug,
+				Logf: func(format string, v ...interface{}) {
+					logf("backend: "+format, v...)
+				},
+			},
+
+			Filename: regexpPath,
+		}
+		backends = append(backends, regexpBackend)
+		backendWeights[regexpBackend] = 8.0 // TODO: adjust as needed
 	}
 
 	//if !c.Bool("no-backend-example") {

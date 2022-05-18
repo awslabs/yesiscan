@@ -1,0 +1,17 @@
+{
+  "comment": "",
+  "rules": [
+    {
+      "id": "AGPL-3.0-or-later",
+      "pattern": "AGPL"
+    },
+    {
+      "id": "AGPL-3.0-or-later",
+      "pattern": "AGPLv3"
+    },
+    {
+      "id": "GPL-3.0-or-later",
+      "pattern": "GPL"
+    }
+  ]
+}

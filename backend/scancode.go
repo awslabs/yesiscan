@@ -101,7 +101,9 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 	// TODO: --processes $NUM_CPUS
 	args := []string{"--license", "--copyright", "--full-root", "--json-pp", "-", filename}
 
-	obj.Logf("running: %s %s", ScancodeProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", ScancodeProgram, strings.Join(args, " "))
+
+	obj.Logf("running: %s", prog)
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
@@ -118,7 +120,7 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, errwrap.Wrapf(err, "cannot run command")
+		return nil, errwrap.Wrapf(err, "error running: %s", prog)
 	}
 
 	buffer := bytes.NewBuffer(out)

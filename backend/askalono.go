@@ -40,6 +40,10 @@ import (
 const (
 	// AskalonoProgram is the name of the askalono executable.
 	AskalonoProgram = "askalono"
+
+	// AskalonoConfidenceError is the error string askalono returns for when
+	// it doesn't have high enough confidence in a file.
+	AskalonoConfidenceError = "Confidence threshold not high enough for any known license"
 )
 
 // Askalono is based on the rust askalono project. It uses the Sørensen–Dice
@@ -116,9 +120,14 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 		Pgid:    0,
 	}
 
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, errwrap.Wrapf(err, "error running: %s", prog)
+	out, reterr := cmd.Output()
+	if reterr != nil {
+		obj.Logf("error running: %s", prog)
+		// don't error here because it might be askalono erroring but
+		// still returning output as an error message... it should not
+		// have been written this way, but askalono team probably won't
+		// change things now.
+		//return nil, errwrap.Wrapf(reterr, "error running: %s", prog)
 	}
 
 	buffer := bytes.NewBuffer(out)
@@ -136,6 +145,19 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 			obj.Logf("got path: %s", askalonoOutput.Path)
 		}
 		return nil, fmt.Errorf("path did not match what was expected")
+	}
+
+	if reterr != nil && askalonoOutput.Error == "" {
+		// probably a bug in askalono
+		return nil, errwrap.Wrapf(reterr, "askalono bug, error running: %s", prog)
+	}
+
+	if reterr != nil && askalonoOutput.Error == AskalonoConfidenceError {
+		return nil, nil // skip
+	}
+
+	if e := askalonoOutput.Error; reterr != nil && e != "" {
+		return nil, fmt.Errorf("unhandled askalono error: %s", e)
 	}
 
 	if askalonoOutput.Path != filename || askalonoOutput.Result == nil {
@@ -180,6 +202,9 @@ type AskalonoOutput struct {
 
 	// Result specifies what it found.
 	Result *AskalonoResultContaining `json:"result"`
+
+	// Error is a string returned instead of Result on askalono error.
+	Error string
 }
 
 // AskalonoResult is the generic result format returned by askalono. It is

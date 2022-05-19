@@ -57,3 +57,8 @@ func String(err error) string {
 	}
 	return err.Error()
 }
+
+// Cause returns the top-most error that we can print directly to the end-user.
+func Cause(err error) error {
+	return errors.Cause(err)
+}

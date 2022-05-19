@@ -330,7 +330,11 @@ func main() {
 
 	err := CLI(program, debug, logf) // TODO: put these args in an input struct
 	if err != nil {
-		logf("failed: %+v", err)
+		if debug {
+			logf("failed: %+v", err)
+		} else {
+			logf("failed: %+v", errwrap.Cause(err))
+		}
 		os.Exit(1)
 		return
 	}

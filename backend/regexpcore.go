@@ -35,6 +35,12 @@ import (
 	"github.com/awslabs/yesiscan/util/licenses"
 )
 
+const (
+	// RegexpMaxBytesLine sets a larger maximum for file line scanning than
+	// the default of bufio.MaxScanTokenSize which is sort of small.
+	RegexpMaxBytesLine = 1024 * 1024 // 1 MiB
+)
+
 // RegexpCore is a simple backend that uses regular expressions to find certain
 // license strings. You should probably not use this backend directly, but wrap
 // it with one of the other ones like Regexp.
@@ -94,6 +100,8 @@ func (obj *RegexpCore) ScanData(ctx context.Context, data []byte, info *interfac
 
 	reader := bytes.NewReader(data)
 	scanner := bufio.NewScanner(reader)
+	buf := []byte{}                         // create a buffer for very long lines
+	scanner.Buffer(buf, RegexpMaxBytesLine) // set the max size of that buffer
 	for scanner.Scan() {
 		// In an effort to short-circuit things if needed, we run a
 		// check ourselves and break out early if we see that we have

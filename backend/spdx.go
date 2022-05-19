@@ -36,6 +36,10 @@ import (
 )
 
 const (
+	// SpdxMaxBytesLine sets a larger maximum for file line scanning than
+	// the default of bufio.MaxScanTokenSize which is sort of small.
+	SpdxMaxBytesLine = 1024 * 1024 // 1 MiB
+
 	// magicStringSPDX is the string we look for when trying to find an ID.
 	magicStringSPDX = "SPDX-License-Identifier:"
 
@@ -80,6 +84,8 @@ func (obj *Spdx) ScanData(ctx context.Context, data []byte, info *interfaces.Inf
 
 	reader := bytes.NewReader(data)
 	scanner := bufio.NewScanner(reader)
+	buf := []byte{}                       // create a buffer for very long lines
+	scanner.Buffer(buf, SpdxMaxBytesLine) // set the max size of that buffer
 	for scanner.Scan() {
 		// In an effort to short-circuit things if needed, we run a
 		// check ourselves and break out early if we see that we have

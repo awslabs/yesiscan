@@ -237,6 +237,20 @@ enter the `cmd/yesiscan/` directory and first run `go generate` to set the
 program name and build version. You can then produce the binary by running
 `go build`.
 
+## Usage
+
+Just run the binary with whatever input you want. For example:
+
+```bash
+yesiscan https://github.com/awslabs/yesiscan/
+```
+
+You can add flags to tell it which backends to include or remove. They're all
+included by default unless you choose which one to exclude with the
+`--no-backend` variants. However if you use any of the `--yes-backend` variants,
+then you have to specify each backend that you want individually. You can get
+the full list of these flags with the `--help` flag.
+
 ## Style Guide
 
 This project uses `gofmt -s` and `goimports -s` to format all code. We follow

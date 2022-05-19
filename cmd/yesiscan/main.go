@@ -70,6 +70,12 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "no-backend-regexp"},
 			&cli.StringFlag{Name: "regexp-path"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
+			&cli.BoolFlag{Name: "yes-backend-licenseclassifier"},
+			&cli.BoolFlag{Name: "yes-backend-spdx"},
+			&cli.BoolFlag{Name: "yes-backend-askalono"},
+			&cli.BoolFlag{Name: "yes-backend-scancode"},
+			&cli.BoolFlag{Name: "yes-backend-bitbake"},
+			&cli.BoolFlag{Name: "yes-backend-regexp"},
 		},
 	}
 
@@ -143,7 +149,29 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	backends := []interfaces.Backend{}
 	backendWeights := make(map[interfaces.Backend]float64)
 
-	if !c.Bool("no-backend-licenseclassifier") {
+	// is there at least one yes-?
+	isAdditive := false ||
+		c.Bool("yes-backend-licenseclassifier") ||
+		c.Bool("yes-backend-spdx") ||
+		c.Bool("yes-backend-askalono") ||
+		c.Bool("yes-backend-scancode") ||
+		c.Bool("yes-backend-bitbake") ||
+		c.Bool("yes-backend-regexp") ||
+		false
+
+	cliFlag := func(f string) bool {
+		if isAdditive && c.Bool(fmt.Sprintf("yes-backend-%s", f)) {
+			return true
+		}
+
+		if !isAdditive && !c.Bool(fmt.Sprintf("no-backend-%s", f)) {
+			return true
+		}
+
+		return false
+	}
+
+	if cliFlag("licenseclassifier") {
 		licenseClassifierBackend := &backend.LicenseClassifier{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
@@ -159,7 +187,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		backendWeights[licenseClassifierBackend] = 1.0 // TODO: adjust as needed
 	}
 
-	if !c.Bool("no-backend-spdx") {
+	if cliFlag("spdx") {
 		spdxBackend := &backend.Spdx{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
@@ -170,7 +198,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		backendWeights[spdxBackend] = 2.0 // TODO: adjust as needed
 	}
 
-	if !c.Bool("no-backend-askalono") {
+	if cliFlag("askalono") {
 		askalonoBackend := &backend.Askalono{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
@@ -184,7 +212,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		backendWeights[askalonoBackend] = 4.0 // TODO: adjust as needed
 	}
 
-	if !c.Bool("no-backend-scancode") {
+	if cliFlag("scancode") {
 		scancodeBackend := &backend.Scancode{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
@@ -198,7 +226,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		backendWeights[scancodeBackend] = 8.0 // TODO: adjust as needed
 	}
 
-	if !c.Bool("no-backend-bitbake") {
+	if cliFlag("bitbake") {
 		bitbakeBackend := &backend.Bitbake{
 			Debug: debug,
 			Logf: func(format string, v ...interface{}) {
@@ -210,7 +238,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	}
 
 	regexpPath := ""
-	if !c.Bool("no-backend-regexp") {
+	if cliFlag("regexp") {
 		if c.IsSet("regexp-path") {
 			regexpPath = c.String("regexp-path")
 		} else {
@@ -239,7 +267,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		backendWeights[regexpBackend] = 8.0 // TODO: adjust as needed
 	}
 
-	//if !c.Bool("no-backend-example") {
+	//if cliFlag("example") {
 	//	exampleBackend := &backend.ExampleClassifier{
 	//		Debug: debug,
 	//		Logf: func(format string, v ...interface{}) {

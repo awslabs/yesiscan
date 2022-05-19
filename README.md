@@ -175,6 +175,14 @@ these `.bb` metadata files that contain `LICENSE=` tags. This backend looks for
 them and includes them in the result. It tries to read them as SPDX ID's where
 possible.
 
+#### Regexp
+
+Regexp is a backend that lets you match based on regular expressions. Nobody
+likes to do this, but it's very common. Put a config file at
+`~/.config/yesiscan/regexp.conf` and then run the tool. An example file can be
+found in `[examples/regexp.conf](examples/regexp.conf)`. You can override the
+default path with the `--regexp-path` command line flag.
+
 ### Caching
 
 The caching layer will be coming soon! Please stay tuned =D

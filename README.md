@@ -242,7 +242,7 @@ program name and build version. You can then produce the binary by running
 Just run the binary with whatever input you want. For example:
 
 ```bash
-yesiscan https://github.com/awslabs/yesiscan/
+yesiscan https://github.com/purpleidea/mgmt/
 ```
 
 You can add flags to tell it which backends to include or remove. They're all

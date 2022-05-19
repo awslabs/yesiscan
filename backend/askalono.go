@@ -105,7 +105,10 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	prog := fmt.Sprintf("%s %s", AskalonoProgram, strings.Join(args, " "))
 
-	obj.Logf("running: %s", prog)
+	// TODO: add a progress bar of some sort somewhere
+	if obj.Debug {
+		obj.Logf("running: %s", prog)
+	}
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?

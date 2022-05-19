@@ -301,6 +301,8 @@ func (obj *Scanner) Scan(ctx context.Context, path safepath.Path, info *interfac
 		}
 	}
 
+	obj.Logf("scanning: %s", path)
+
 Loop:
 	for _, backend := range obj.Backends {
 		// Some backends aren't particularly well-behaved with
@@ -323,9 +325,7 @@ Loop:
 			defer wg.Done()
 			defer obj.wg.Done()
 
-			if obj.Debug {
-				obj.Logf("scanning: %s", path)
-			}
+			//obj.Logf("scanning: %s", path)
 
 			var result *interfaces.Result
 			var err error

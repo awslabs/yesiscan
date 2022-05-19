@@ -179,8 +179,8 @@ possible.
 
 Regexp is a backend that lets you match based on regular expressions. Nobody
 likes to do this, but it's very common. Put a config file at
-`~/.config/yesiscan/regexp.conf` and then run the tool. An example file can be
-found in `[examples/regexp.conf](examples/regexp.conf)`. You can override the
+`~/.config/yesiscan/regexp.json` and then run the tool. An example file can be
+found in `[examples/regexp.json](examples/regexp.json)`. You can override the
 default path with the `--regexp-path` command line flag.
 
 ### Caching

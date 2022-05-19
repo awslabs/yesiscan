@@ -83,6 +83,15 @@ func (obj *Scancode) Setup(ctx context.Context) error {
 		Setpgid: true,
 		Pgid:    0,
 	}
+
+	if err := cmd.Run(); err != nil {
+		if e, ok := err.(*exec.Error); ok && e.Err == exec.ErrNotFound {
+			// TODO: this error message is CLI specific, but should be generalized
+			obj.Logf("either run with --no-backend-scancode or install scancode into your $PATH")
+		}
+		return errwrap.Wrapf(err, "error running: %s", ScancodeProgram)
+	}
+
 	return nil
 }
 

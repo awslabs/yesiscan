@@ -52,6 +52,8 @@ func (obj *Regexp) String() string {
 func (obj *Regexp) Setup(ctx context.Context) error {
 	b, err := os.ReadFile(obj.Filename)
 	if err != nil {
+		// TODO: this error message is CLI specific, but should be generalized
+		obj.Logf("either run with --no-backend-regexp or create your regexp pattern file at %s", obj.Filename)
 		return errwrap.Wrapf(err, "could not read config file: %s", obj.Filename)
 	}
 

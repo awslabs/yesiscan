@@ -86,7 +86,16 @@ func (obj *Askalono) Setup(ctx context.Context) error {
 		Setpgid: true,
 		Pgid:    0,
 	}
-	return cmd.Run()
+
+	if err := cmd.Run(); err != nil {
+		if e, ok := err.(*exec.Error); ok && e.Err == exec.ErrNotFound {
+			// TODO: this error message is CLI specific, but should be generalized
+			obj.Logf("either run with --no-backend-askalono or install askalono into your $PATH")
+		}
+		return errwrap.Wrapf(err, "error running: %s", AskalonoProgram)
+	}
+
+	return nil
 }
 
 func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *interfaces.Info) (*interfaces.Result, error) {

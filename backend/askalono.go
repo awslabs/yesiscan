@@ -134,7 +134,9 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	out, reterr := cmd.Output()
 	if reterr != nil {
-		obj.Logf("error running: %s", prog)
+		if obj.Debug {
+			obj.Logf("error running: %s", prog)
+		}
 		// XXX: bug: https://github.com/jpeddicord/askalono/issues/74
 		// don't error here because it might be askalono erroring but
 		// still returning output as an error message... it should not

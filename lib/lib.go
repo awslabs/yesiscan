@@ -138,6 +138,9 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 
 	obj.Logf("starting with %d iterators...", len(iterators))
 	obj.Logf("running over %d backends...", len(obj.Backends))
+	for _, x := range obj.Backends {
+		obj.Logf("* %s", x.String())
+	}
 	errors := []error{}
 	once := &sync.Once{}
 	closeFnDo := func() { close(scanners) }

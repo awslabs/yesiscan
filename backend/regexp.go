@@ -86,7 +86,7 @@ type RegexpConfig struct {
 
 	// Origin is the SPDX origin string if we want to have a custom
 	// namespace for non-SPDX license ID's.
-	Origin string
+	Origin string `json:"origin"`
 
 	// Comment adds a user friendly comment for this file. We could use it
 	// to add a version string or maybe that could be a separate field.

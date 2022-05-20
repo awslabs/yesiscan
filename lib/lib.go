@@ -50,6 +50,7 @@ type Core struct {
 
 // Init initializes and validates the core struct before use.
 func (obj *Core) Init(ctx context.Context) error {
+	obj.Logf("setup...")
 	i := 0 // count first so we get a more accurate validation message
 	for _, backend := range obj.Backends {
 		_, ok := backend.(interfaces.SetupBackend)
@@ -58,7 +59,9 @@ func (obj *Core) Init(ctx context.Context) error {
 		}
 		i++
 	}
-	obj.Logf("setup for %d backends...", i)
+	if obj.Debug {
+		obj.Logf("setup for %d backends...", i)
+	}
 	for _, backend := range obj.Backends {
 		vb, ok := backend.(interfaces.SetupBackend)
 		if !ok {

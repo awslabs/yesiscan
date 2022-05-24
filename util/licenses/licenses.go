@@ -208,6 +208,66 @@ func ID(spdx string) (*LicenseSPDX, error) {
 	return nil, fmt.Errorf("license ID (%s) not found", spdx)
 }
 
+// StringToLicense takes an input string and returns a license struct. This can
+// handle both normal SPDX ID's and the origin strings in the `name(origin)`
+// format. It rarely returns an error unless you pass it an obviously fake
+// license identifier.
+// TODO: add some tests
+func StringToLicense(name string) (*License, error) {
+	license := &License{
+		SPDX: name,
+	}
+
+	if err := license.Validate(); err == nil {
+		return license, nil
+	}
+
+	// assume this for now...
+	license = &License{
+		//SPDX: "",
+		Origin: "", // unknown
+		Custom: name,
+	}
+
+	// parse the licenseName(origin) syntax
+	ix := strings.Index(name, "(")
+	if ix > -1 && strings.HasSuffix(name, ")") && (ix+1) < (len(name)-1) {
+		license = &License{
+			//SPDX: "",
+			Origin: name[ix+1 : len(name)-1],
+			Custom: name[0:ix],
+		}
+	}
+
+	lhs := strings.Count(name, "(")
+	rhs := strings.Count(name, ")")
+	if lhs != rhs {
+		return nil, fmt.Errorf("unbalanced parenthesis")
+	}
+	if lhs != 0 && lhs != 1 {
+		return nil, fmt.Errorf("invalid parenthesis count")
+	}
+
+	return license, nil
+}
+
+// StringsToLicenses converts a list of input strings and converts them into the
+// matching list of license structs. It accepts non-SPDX license names in the
+// standard SPDX format of `name(origin)`.
+func StringsToLicenses(inputs []string) ([]*License, error) {
+	licenses := []*License{}
+
+	for _, x := range inputs {
+		license, err := StringToLicense(x)
+		if err != nil {
+			return nil, err
+		}
+		licenses = append(licenses, license)
+	}
+
+	return licenses, nil
+}
+
 // Join joins the string representations of a list of licenses with comma space.
 func Join(licenses []*License) string {
 	xs := []string{}
@@ -226,4 +286,18 @@ func InList(needle *License, haystack []*License) bool {
 		}
 	}
 	return false
+}
+
+// Union returns the union of licenses in both input lists. It uses the pointers
+// from the first list in the results. It does not try to remove duplicates so
+// if either list has duplicates, you may end up with duplicates in the result.
+// It uses the license Cmp method to determine equality.
+func Union(haystack1 []*License, haystack2 []*License) []*License {
+	union := []*License{}
+	for _, x := range haystack1 {
+		if InList(x, haystack2) {
+			union = append(union, x)
+		}
+	}
+	return union
 }

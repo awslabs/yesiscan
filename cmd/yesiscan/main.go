@@ -22,8 +22,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -37,6 +39,7 @@ import (
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/parser"
 	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/licenses"
 	"github.com/awslabs/yesiscan/util/safepath"
 
 	cli "github.com/urfave/cli/v2" // imports as package "cli"
@@ -76,6 +79,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "yes-backend-scancode"},
 			&cli.BoolFlag{Name: "yes-backend-bitbake"},
 			&cli.BoolFlag{Name: "yes-backend-regexp"},
+			&cli.StringSliceFlag{Name: "profile"},
 		},
 	}
 
@@ -103,6 +107,11 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		return err
 	}
 	logf("prefix: %s", safePrefixAbsDir)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		logf("error finding home directory: %+v", err)
+	}
 
 	// TODO: add more --flags to specify which parser/backends to use...
 
@@ -243,10 +252,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 			regexpPath = c.String("regexp-path")
 		} else {
 			// TODO: implement proper XDG and maybe path precedence?
-			home, err := os.UserHomeDir()
-			if err != nil {
-				logf("error finding home directory: %+v", err)
-			} else {
+			if home != "" {
 				regexpPath = filepath.Join(home, ".config/", program+"/", "regexp.json")
 				regexpPath = filepath.Clean(regexpPath)
 			}
@@ -278,6 +284,58 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	//	backendWeights[exampleBackend] = 99.0 // TODO: adjust as needed
 	//}
 
+	// load the profiles earlier than needed to catch json typos and commas
+	profiles := c.StringSlice("profile")
+	profilesData := make(map[string]*lib.ProfileData)
+	profilesData[lib.DefaultProfileName] = nil // add a "default" profile for fun
+	// TODO: implement proper XDG and maybe path precedence?
+	for _, x := range profiles {
+		var err error
+		data := []byte{}
+		if home != "" {
+			p := fmt.Sprintf("%s.json", x) // TODO: validate input string?
+			profilePath := filepath.Join(home, ".config/", program+"/profiles/", p)
+			profilePath = filepath.Clean(profilePath)
+			data, err = os.ReadFile(profilePath)
+			// check errors below...
+		}
+		if os.IsNotExist(err) || home == "" {
+			data, err = os.ReadFile(x)
+		}
+
+		if err != nil {
+			logf("profile %s: %s", x, err)
+			err = nil // reset
+			continue
+		}
+
+		buffer := bytes.NewBuffer(data)
+		if buffer.Len() == 0 {
+			// TODO: should this be an error, or just a silent ignore?
+			logf("profile %s: empty input file", x)
+			continue
+		}
+		decoder := json.NewDecoder(buffer)
+
+		var profileConfig lib.ProfileConfig // this gets populated during decode
+		if err := decoder.Decode(&profileConfig); err != nil {
+			// TODO: should this be an error, or just a silent ignore?
+			logf("profile %s: error decoding json output: %+v", err)
+			continue
+		}
+
+		list, err := licenses.StringsToLicenses(profileConfig.Licenses)
+		if err != nil {
+			logf("profile %s: error parsing license: %+v", err)
+			continue
+		}
+
+		profilesData[x] = &lib.ProfileData{
+			Licenses: list,
+			Exclude:  profileConfig.Exclude,
+		}
+	}
+
 	core := &lib.Core{
 		Debug: debug,
 		Logf: func(format string, v ...interface{}) {
@@ -300,12 +358,27 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		return errwrap.Wrapf(err, "core run failed")
 	}
 
-	str, err := lib.SimpleResults(results, backendWeights)
-	if err != nil {
-		return err
+	// remove all the invalid/missing profiles, keep in the original order
+	newProfiles := []string{}
+	for _, x := range profiles {
+		if _, exists := profilesData[x]; exists {
+			newProfiles = append(newProfiles, x)
+		}
+	}
+	profiles = newProfiles
+	if len(profiles) == 0 {
+		// add a default profile
+		profiles = append(profiles, lib.DefaultProfileName)
 	}
 
-	logf("Results...\n%s", str)
+	for _, x := range profiles {
+		pro, err := lib.SimpleProfiles(results, profilesData[x], backendWeights)
+		if err != nil {
+			return err
+		}
+
+		logf("profile %s:\n%s", x, pro)
+	}
 
 	return nil
 }

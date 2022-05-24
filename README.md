@@ -245,11 +245,27 @@ Just run the binary with whatever input you want. For example:
 yesiscan https://github.com/purpleidea/mgmt/
 ```
 
+### Backends
+
 You can add flags to tell it which backends to include or remove. They're all
 included by default unless you choose which one to exclude with the
 `--no-backend` variants. However if you use any of the `--yes-backend` variants,
 then you have to specify each backend that you want individually. You can get
 the full list of these flags with the `--help` flag.
+
+### Profiles
+
+Most users might want to filter their results so that not all licenses are
+shown. For this you may specify one or more `--profile <name>` parameters. If
+the `<name>` corresponds to a `<name>.json` file in your
+`~/.config/yesiscan/profiles/` directory, then it will use that file to render
+the profile. The contents of that file should be in a similar format to the
+example file in `[examples/profile.json](examples/profile.json)`. You get to
+pick a comment for personal use, a list of SPDX license ID's, and whether this
+is an exclude list or an include list. If you don't specify any profiles you
+will get the default profile. It is also a built-in name so you can add in this
+profile to your above set by doing `--profile default` and if there is no such
+user-defined profile, then the default will be displayed.
 
 ## Style Guide
 

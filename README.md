@@ -267,6 +267,21 @@ will get the default profile. It is also a built-in name so you can add in this
 profile to your above set by doing `--profile default` and if there is no such
 user-defined profile, then the default will be displayed.
 
+### Bash Auto Completion
+
+If you source the bash-autocompletion stub, then you will get autocompletion of
+the common flags! Download the stub from [https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete](https://github.com/urfave/cli/blob/main/autocomplete/bash_autocomplete) and put it somewhere like
+`/etc/profile.d/yesiscan`. The name of the file must match the name of the
+program! Things should just work, but if they don't, you may want to add a stub
+in your `~/.bashrc` like:
+
+```bash
+# force yesiscan bash-autocompletion to work
+if [ -e /etc/profile.d/yesiscan ]; then
+	source /etc/profile.d/yesiscan
+fi
+```
+
 ## Style Guide
 
 This project uses `gofmt -s` and `goimports -s` to format all code. We follow

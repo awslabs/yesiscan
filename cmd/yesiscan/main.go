@@ -81,6 +81,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "yes-backend-regexp"},
 			&cli.StringSliceFlag{Name: "profile"},
 		},
+		EnableBashCompletion: true,
 	}
 
 	return app.Run(os.Args)

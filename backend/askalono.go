@@ -75,7 +75,9 @@ func (obj *Askalono) Setup(ctx context.Context) error {
 
 	args := []string{"--help"}
 
-	obj.Logf("running: %s %s", AskalonoProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", AskalonoProgram, strings.Join(args, " "))
+
+	obj.Logf("running: %s", prog)
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
@@ -92,7 +94,9 @@ func (obj *Askalono) Setup(ctx context.Context) error {
 			// TODO: this error message is CLI specific, but should be generalized
 			obj.Logf("either run with --no-backend-askalono or install askalono into your $PATH")
 		}
-		return errwrap.Wrapf(err, "error running: %s", AskalonoProgram)
+
+		obj.Logf("your %s doesn't seem to be working properly, check how it was installed?", AskalonoProgram)
+		return errwrap.Wrapf(err, "error running: %s", prog)
 	}
 
 	return nil

@@ -72,7 +72,9 @@ func (obj *Scancode) Setup(ctx context.Context) error {
 
 	args := []string{"--help"}
 
-	obj.Logf("running: %s %s", ScancodeProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", ScancodeProgram, strings.Join(args, " "))
+
+	obj.Logf("running: %s", prog)
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
@@ -89,7 +91,9 @@ func (obj *Scancode) Setup(ctx context.Context) error {
 			// TODO: this error message is CLI specific, but should be generalized
 			obj.Logf("either run with --no-backend-scancode or install scancode into your $PATH")
 		}
-		return errwrap.Wrapf(err, "error running: %s", ScancodeProgram)
+
+		obj.Logf("your %s doesn't seem to be working properly, check how it was installed?", ScancodeProgram)
+		return errwrap.Wrapf(err, "error running: %s", prog)
 	}
 
 	return nil

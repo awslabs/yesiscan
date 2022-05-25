@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/awslabs/yesiscan/interfaces"
@@ -54,35 +55,6 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 
 	iterators := []interfaces.Iterator{}
 
-	// path component
-	if strings.HasPrefix(obj.Input, "/") {
-		// XXX: we could auto-detect the dir bit, and deal with rel paths too
-		isDir := strings.HasSuffix(obj.Input, "/")
-		info, err := os.Stat(obj.Input) // XXX: stat or Lstat?
-		if err != nil {
-			return nil, err
-		}
-		if isDir != info.IsDir() {
-			return nil, fmt.Errorf("input path must end with a trailing slash if it's a dir")
-		}
-		path, err := safepath.ParseIntoPath(obj.Input, isDir)
-		if err != nil {
-			return nil, err
-		}
-		iterator := &iterator.Fs{
-			Debug: obj.Debug,
-			Logf: func(format string, v ...interface{}) {
-				obj.Logf("iterator: "+format, v...)
-			},
-			Prefix: obj.Prefix,
-			Path:   path,
-
-			Parser: obj, // store a handle to the originator
-		}
-		iterators = append(iterators, iterator)
-		return iterators, nil
-	}
-
 	// NOTE: it's unlikely that the url.Parse method ever errors.
 	u, err := url.Parse(obj.Input)
 	if err != nil {
@@ -90,9 +62,15 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 	}
 	s := u.String()
 
-	// TODO: consider adding HttpScheme as well (with a flag)
-	if u.Scheme == iterator.HttpScheme {
-		return nil, fmt.Errorf("plain http is currently blocked")
+	if obj.Debug {
+		obj.Logf("scheme: %s", u.Scheme)
+		obj.Logf("host: %s", u.Host)
+		obj.Logf("path: %s", u.Path)
+	}
+
+	// TODO: consider allowing HttpSchemeRaw as well (with a flag)
+	if u.Scheme == iterator.HttpSchemeRaw {
+		return nil, fmt.Errorf("plain http is currently blocked, did you mean https?")
 	}
 
 	// this is a bit of a heuristic, but we'll go with it for now
@@ -113,18 +91,75 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 		return iterators, nil
 	}
 
-	// TODO: for now, just assume it can only be a git iterator...
-	iterator := &iterator.Git{
-		Debug: obj.Debug,
-		Logf: func(format string, v ...interface{}) {
-			obj.Logf("iterator: "+format, v...)
-		},
-		Prefix:        obj.Prefix,
-		URL:           s, // TODO: pass a *net.URL instead?
-		TrimGitSuffix: true,
+	if isGit(u) {
+		// TODO: for now, just assume it can only be a git iterator...
+		iterator := &iterator.Git{
+			Debug: obj.Debug,
+			Logf: func(format string, v ...interface{}) {
+				obj.Logf("iterator: "+format, v...)
+			},
+			Prefix:        obj.Prefix,
+			URL:           s, // TODO: pass a *net.URL instead?
+			TrimGitSuffix: true,
 
-		Parser: obj, // store a handle to the originator
+			Parser: obj, // store a handle to the originator
+		}
+		iterators = append(iterators, iterator)
+		return iterators, nil
 	}
-	iterators = append(iterators, iterator)
-	return iterators, nil
+
+	// path component (absolute or relative, file or dir)
+	if u.Scheme == "" {
+		// XXX: we could auto-detect the dir bit
+		isDir := strings.HasSuffix(obj.Input, "/")
+		info, err := os.Stat(obj.Input) // XXX: stat or Lstat?
+		if err != nil {
+			return nil, err
+		}
+		if isDir != info.IsDir() {
+			return nil, fmt.Errorf("input path must end with a trailing slash if it's a dir")
+		}
+
+		p, err := filepath.Abs(obj.Input)
+		if err != nil {
+			return nil, err
+		}
+		if isDir {
+			p += "/" // filepath.Abs calls filepath.Clean which strips this
+		}
+
+		path, err := safepath.ParseIntoPath(p, isDir)
+		if err != nil {
+			return nil, err
+		}
+		iterator := &iterator.Fs{
+			Debug: obj.Debug,
+			Logf: func(format string, v ...interface{}) {
+				obj.Logf("iterator: "+format, v...)
+			},
+			Prefix: obj.Prefix,
+			Path:   path,
+
+			Parser: obj, // store a handle to the originator
+		}
+		iterators = append(iterators, iterator)
+		return iterators, nil
+	}
+
+	obj.Logf("i'm not sure how to parse this URI, please report this if you think I should be able to!")
+	return nil, fmt.Errorf("i'm not sure how to parse this uri")
+}
+
+// isGit is a small helper to decide if we should run the git iterator or not.
+// TODO: we should expand this function as it's a heuristic. maybe we can do
+// better overall and not need a heuristic. time will tell...
+func isGit(u *url.URL) bool {
+	if u.Scheme == iterator.GitSchemeRaw {
+		return true
+	}
+	if u.Scheme == iterator.HttpsSchemeRaw && strings.ToLower(u.Host) == "github.com" {
+		return true
+	}
+
+	return false
 }

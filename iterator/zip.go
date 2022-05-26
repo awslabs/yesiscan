@@ -39,8 +39,11 @@ import (
 
 const (
 	// ZipExtension is the standard extension used for zip URI's.
-	// TODO: support case-insensitive matches
 	ZipExtension = ".zip"
+
+	// JarExtension is used for java .jar files. This is included here since
+	// they are just zip files that are named differently.
+	JarExtension = ".jar"
 )
 
 var (
@@ -84,6 +87,13 @@ type Zip struct {
 	// Path does not end with the correct zip extension.
 	AllowAnyExtension bool
 
+	// AllowedExtensions specifies a list of extensions that we are allowed
+	// to try to decode from. If this is empty, then we allow only the
+	// default of zip because allowing no extensions at all would make no
+	// sense. If AllowAnyExtension is set, then this has no effect. All the
+	// matches are case insensitive.
+	AllowedExtensions []string
+
 	// iterators store the list of which iterators we created, so we know
 	// which ones we have to close!
 	iterators []interfaces.Iterator
@@ -117,12 +127,29 @@ func (obj *Zip) Validate() error {
 		return fmt.Errorf("must specify a Path")
 	}
 
-	if !obj.Path.HasExt(ZipExtension) && !obj.AllowAnyExtension {
-		// did you mean .zip ?
+	return obj.validateExtension()
+}
+
+// validateExtension is a helper function to process our extension validation.
+func (obj *Zip) validateExtension() error {
+	if obj.AllowAnyExtension {
+		return nil
+	}
+	if obj.Path.HasExtInsensitive(ZipExtension) && len(obj.AllowedExtensions) == 0 {
+		return nil
+	}
+
+	for _, x := range obj.AllowedExtensions {
+		if obj.Path.HasExtInsensitive(x) {
+			return nil
+		}
+	}
+
+	if len(obj.AllowedExtensions) == 0 {
 		return fmt.Errorf("the zip extension is required without the allow any extension option")
 	}
 
-	return nil
+	return fmt.Errorf("an allowed extension is required to run this iterator")
 }
 
 // GetParser returns a handle to the parent parser that built this iterator if

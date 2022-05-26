@@ -100,7 +100,19 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 			defer stop()
 
-			return m.Run(ctx)
+			output, err := m.Run(ctx)
+			if err != nil {
+				return err
+			}
+
+			s, err := lib.ReturnOutputConsole(output)
+			if err != nil {
+				return err
+			}
+
+			fmt.Print(s) // display it
+
+			return nil
 		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},
@@ -122,6 +134,20 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.StringSliceFlag{Name: "profile"},
 		},
 		EnableBashCompletion: true,
+
+		Commands: []*cli.Command{
+			{
+				Name:    "web",
+				Aliases: []string{"web"},
+				Usage:   "launch a web server mode",
+				Action: func(c *cli.Context) error {
+					return Web(c, program, debug, logf)
+				},
+				Flags: []cli.Flag{
+					&cli.StringSliceFlag{Name: "profile"},
+				},
+			},
+		},
 	}
 
 	return app.Run(os.Args)

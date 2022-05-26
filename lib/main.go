@@ -62,7 +62,7 @@ type Main struct {
 
 // Run is the main method for the Main struct. We use a struct as a way to pass
 // in a ton of different arguments in a cleaner way.
-func (obj *Main) Run(ctx context.Context) error {
+func (obj *Main) Run(ctx context.Context) (*Output, error) {
 
 	Bool := func(k string) bool { // like the c.Bool function of cli context
 		val, _ := obj.Flags[k]
@@ -71,18 +71,18 @@ func (obj *Main) Run(ctx context.Context) error {
 
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := os.MkdirAll(userCacheDir, interfaces.Umask); err != nil {
-		return err
+		return nil, err
 	}
 	prefix := filepath.Join(userCacheDir, obj.Program)
 	if err := os.MkdirAll(prefix, interfaces.Umask); err != nil {
-		return err
+		return nil, err
 	}
 	safePrefixAbsDir, err := safepath.ParseIntoAbsDir(prefix)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	obj.Logf("prefix: %s", safePrefixAbsDir)
 
@@ -100,7 +100,7 @@ func (obj *Main) Run(ctx context.Context) error {
 			var err error
 			s, err = stdinAsString(obj.Logf)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		inputStrings = append(inputStrings, s)
@@ -108,7 +108,7 @@ func (obj *Main) Run(ctx context.Context) error {
 	if len(obj.Args) == 0 { // if we didn't get any args, assume stdin
 		s, err := stdinAsString(obj.Logf)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		inputStrings = append(inputStrings, s)
 	}
@@ -127,7 +127,7 @@ func (obj *Main) Run(ctx context.Context) error {
 
 		ixs, err := trivialURIParser.Parse() // parser returns iterators
 		if err != nil {
-			return errwrap.Wrapf(err, "parser failed")
+			return nil, errwrap.Wrapf(err, "parser failed")
 		}
 		iterators = append(iterators, ixs...)
 	}
@@ -335,12 +335,12 @@ func (obj *Main) Run(ctx context.Context) error {
 	}
 
 	if err := core.Init(ctx); err != nil {
-		return errwrap.Wrapf(err, "could not initialize core")
+		return nil, errwrap.Wrapf(err, "could not initialize core")
 	}
 
 	results, err := core.Run(ctx)
 	if err != nil {
-		return errwrap.Wrapf(err, "core run failed")
+		return nil, errwrap.Wrapf(err, "core run failed")
 	}
 
 	// remove all the invalid/missing profiles, keep in the original order
@@ -355,16 +355,36 @@ func (obj *Main) Run(ctx context.Context) error {
 		profiles = append(profiles, DefaultProfileName)
 	}
 
-	for _, x := range profiles {
-		pro, err := SimpleProfiles(results, profilesData[x], backendWeights)
+	return &Output{
+		Results:        results,
+		Profiles:       profiles,
+		ProfilesData:   profilesData,
+		BackendWeights: backendWeights,
+	}, nil
+}
+
+// Output combines all of the returned data from Run() into a consistent form.
+type Output struct {
+	Results        map[string]map[interfaces.Backend]*interfaces.Result
+	Profiles       []string
+	ProfilesData   map[string]*ProfileData
+	BackendWeights map[interfaces.Backend]float64
+}
+
+// ReturnOutputConsole returns a string of output, formatted for the console.
+func ReturnOutputConsole(output *Output) (string, error) {
+	s := ""
+	summary := true // TODO: perhaps configure this somewhere or as a flag?
+	for _, x := range output.Profiles {
+		pro, err := SimpleProfiles(output.Results, output.ProfilesData[x], summary, output.BackendWeights, "ansi")
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		obj.Logf("profile %s:\n%s", x, pro)
+		s += fmt.Sprintf("profile %s:\n%s\n", x, pro)
 	}
 
-	return nil
+	return s, nil
 }
 
 func stdinAsString(logf func(format string, v ...interface{})) (string, error) {

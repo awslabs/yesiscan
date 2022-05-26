@@ -276,10 +276,22 @@ program name and build version. You can then produce the binary by running
 
 ## Usage
 
+### CLI
+
 Just run the binary with whatever input you want. For example:
 
 ```bash
 yesiscan https://github.com/purpleidea/mgmt/
+```
+
+### Web
+
+Just run the binary in `web` mode. Then you can launch your web browser and use
+it normally. For example:
+
+```bash
+yesiscan web
+xdg-open http://localhost:8000/
 ```
 
 ### Flags

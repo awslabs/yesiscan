@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	// UseColour specifies whether we use ANSI terminal colours or not.
+	// UseColour specifies whether we use ANSI/HTML colours or not.
 	UseColour = true
 
 	// DefaultProfileName is the name given to the built-in "include all"
@@ -69,19 +69,32 @@ type ProfileData struct {
 // SimpleProfiles is a simple way to filter the results. This is the first
 // filter function created and is mostly used for an initial POC. It is the
 // more complicated successor to the SimpleResults function.
-func SimpleProfiles(results interfaces.ResultSet, profile *ProfileData, backendWeights map[interfaces.Backend]float64) (string, error) {
+func SimpleProfiles(results interfaces.ResultSet, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
 	if len(results) == 0 {
 		return "", fmt.Errorf("no results obtained")
 	}
 
 	str := ""
+	hasResults := false                  // do we have anything to show?
+	licenseMap := make(map[string]int64) // for computing a summary
 	// XXX: handle dir's in here specially and merge in their weights with child paths!
 Loop:
 	for uri, m := range results { // FIXME: sort and process properly
 		bs := []*AnnotatedBackend{}
 		ttl := 0.0      // total weight for the set of backends at this uri
 		skipUri := true // assume we skip
+		innerLicenseMap := make(map[string]int64)
+		plus := func(name string) {
+			val, _ := innerLicenseMap[name] // defaults to zero!
+			innerLicenseMap[name] = val + 1
+		}
 		for backend, result := range m {
+
+			// accounting for licenses summary
+			for _, x := range result.Licenses {
+				plus(x.String())
+			}
+
 			if profile == nil {
 				skipUri = false
 			} else {
@@ -123,11 +136,34 @@ Loop:
 			f = f + b.ScaledConfidence
 		}
 
+		// merge into to parent accounting
+		for k, v := range innerLicenseMap { // map[string]int64
+			val, _ := licenseMap[k] // defaults to zero!
+			licenseMap[k] = val + v
+		}
+
+		// start table row here after the above continue...
+		if style == "html" {
+			str += "<tr><td>"
+		}
+
 		sort.Sort(sort.Reverse(SortedBackends(bs)))
 		display := uri // show the URI
 		smartURI := util.SmartURI(uri)
-		hyperlink := util.ShellHyperlinkEncode(display, smartURI)
-		str += fmt.Sprintf("%s (%.2f%%)\n", hyperlink, f*100.0)
+		if style == "ansi" {
+			hyperlink := util.ShellHyperlinkEncode(display, smartURI)
+			str += fmt.Sprintf("%s (%.2f%%)\n", hyperlink, f*100.0)
+			hasResults = true
+		}
+		if style == "html" {
+			hyperlink := util.HtmlHyperlinkEncode(display, smartURI)
+			str += fmt.Sprintf("%s (%.2f%%)", hyperlink, f*100.0)
+			hasResults = true
+		}
+
+		if style == "html" {
+			str += "<ul>"
+		}
 		for _, b := range bs { // for backend, result := range m
 			backend := b.Backend
 			weight := b.Weight // backendWeights[backend]
@@ -142,7 +178,13 @@ Loop:
 					r := x.String()
 					inList := licenses.InList(x, profile.Licenses)
 					if inList && !profile.Exclude || !inList && profile.Exclude {
-						r = redString(x.String())
+						r = x.String()
+						if style == "ansi" {
+							r = redString(r)
+						}
+						if style == "html" {
+							r = `<span style="color: red;">` + r + "</span>"
+						}
 					}
 
 					ll = append(ll, r)
@@ -150,13 +192,22 @@ Loop:
 				l = strings.Join(ll, ", ")
 			}
 
-			str += fmt.Sprintf("    %s (%.2f/%.2f)  %s (%.2f%%)\n", backend.String(), weight, ttl, l, result.Confidence*100.0)
+			s := ""
+			if style == "ansi" {
+				s = fmt.Sprintf("    %s (%.2f/%.2f)  %s (%.2f%%)\n", backend.String(), weight, ttl, l, result.Confidence*100.0)
+			}
+			if style == "html" {
+				s = fmt.Sprintf("<li>%s (%.2f/%.2f) %s (%.2f%%)</li>", backend.String(), weight, ttl, l, result.Confidence*100.0)
+			}
+			str += s
+			hasResults = true
 			if !debug {
 				continue
 			}
 			it := result.Meta.Iterator // at least one must be present
 			for {
 				str += fmt.Sprintf("        %s\n", it)
+				hasResults = true
 				newIt := it.GetIterator()
 				if newIt == nil {
 					break
@@ -165,11 +216,47 @@ Loop:
 			}
 			if parser := it.GetParser(); parser != nil {
 				str += fmt.Sprintf("            %s\n", parser)
+				hasResults = true
 			}
 		}
+		if style == "html" {
+			str += "</ul>"
+			str += "</td></tr>"
+		}
 	}
-	if str == "" {
+	if !hasResults {
+		if style == "html" {
+			return "<tr><td>no results</td></tr>", nil // TODO: error instead?
+		}
 		return "<no results>", nil // TODO: error instead?
 	}
+
+	if summary {
+		names := []string{}
+		for k := range licenseMap { // map[string]int64
+			names = append(names, k)
+		}
+		sort.Strings(names)
+
+		if style == "html" {
+			s := `<tr><td><table id="summary">`
+			s += `<tr><th colspan="2">summary:</th></tr>`
+			for _, x := range names {
+				s += fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", x, licenseMap[x])
+			}
+
+			s += "</table></td></tr>"
+
+			return s + str, nil
+		}
+
+		s := "summary:\n"
+		for _, x := range names {
+			s += fmt.Sprintf("%s: %d\n", x, licenseMap[x])
+		}
+
+		return s + str, nil
+	}
+
 	return str, nil
 }

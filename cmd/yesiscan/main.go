@@ -118,6 +118,17 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.StringSliceFlag{Name: "profile"},
 		},
 		EnableBashCompletion: true,
+
+		Commands: []*cli.Command{
+			{
+				Name:    "webserver",
+				Aliases: []string{"webserver"},
+				Usage:   "launch a webserver mode",
+				Action: func(c *cli.Context) error {
+					return Webserver(c, program, debug, logf)
+				},
+			},
+		},
 	}
 
 	return app.Run(os.Args)

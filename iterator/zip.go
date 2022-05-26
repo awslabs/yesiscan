@@ -256,8 +256,8 @@ func (obj *Zip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 			// if absDir is not inside of zipAbsDir then error
 
 			// XXX: which mode method?
-			if err := os.MkdirAll(absDir.Path(), os.ModePerm); err != nil {
 			//if err := os.MkdirAll(absDir.Path(), x.Mode()); err != nil {
+			if err := os.MkdirAll(absDir.Path(), os.ModePerm); err != nil {
 				// programming error
 				obj.unlock()
 				return nil, err
@@ -285,8 +285,8 @@ func (obj *Zip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 		// XXX: which mode to use? Maybe we are assuming a mode here
 		// because we haven't seen that dir yet! Maybe if we pre-sort
 		// all of the zip file entries first...
-		if err := os.MkdirAll(absDir.Path(), os.ModePerm); err != nil {
 		//if err := os.MkdirAll(absDir.Path(), x.Mode()); err != nil {
+		if err := os.MkdirAll(absDir.Path(), os.ModePerm); err != nil {
 			// programming error
 			obj.unlock()
 			return nil, err

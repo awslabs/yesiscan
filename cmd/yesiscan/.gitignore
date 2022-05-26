@@ -2,3 +2,5 @@
 yesiscan
 .program
 .version
+dist/
+.envrc

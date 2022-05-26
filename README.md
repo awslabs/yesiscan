@@ -61,6 +61,8 @@ eventually end up with an fs iterator to do the actual work.
 The zip iterator can decompress and extract zip files. It uses a heuristic to
 decide whether a file should be extracted or not. It usually does the right
 thing, but if you can find a corner case where it does not, please let us know.
+It also handles java `.jar` files since those are basically zip files in
+disguise.
 
 #### http
 

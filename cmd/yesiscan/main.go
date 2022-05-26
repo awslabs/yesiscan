@@ -62,7 +62,47 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 		Name:  program,
 		Usage: "scan code for legal things",
 		Action: func(c *cli.Context) error {
-			return Main(c, program, debug, logf)
+
+			args := []string{}
+			for i := 0; i < c.NArg(); i++ {
+				s := c.Args().Get(i)
+				args = append(args, s)
+			}
+
+			flags := make(map[string]bool)
+			names := []string{
+				"no-backend-licenseclassifier",
+				"no-backend-spdx",
+				"no-backend-askalono",
+				"no-backend-scancode",
+				"no-backend-bitbake",
+				"no-backend-regexp",
+				"yes-backend-licenseclassifier",
+				"yes-backend-spdx",
+				"yes-backend-askalono",
+				"yes-backend-scancode",
+				"yes-backend-bitbake",
+				"yes-backend-regexp",
+			}
+			for _, f := range names {
+				if c.IsSet(f) {
+					flags[f] = c.Bool(f)
+				}
+			}
+
+			m := &Main{
+				Program: program,
+				Debug:   debug,
+				Logf:    logf,
+
+				Args:  args,
+				Flags: flags,
+
+				Profiles: c.StringSlice("profile"),
+
+				RegexpPath: c.String("regexp-path"),
+			}
+			return m.Run()
 		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},
@@ -87,10 +127,35 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 	return app.Run(os.Args)
 }
 
-// Main is the general entry point for running this software.
-// TODO: replace the *cli.Context with a more general context that can be used
-// by all the different frontends.
-func Main(c *cli.Context, program string, debug bool, logf func(format string, v ...interface{})) error {
+// Main is the general entry point for running this software. Populate this
+// struct with the inputs and then call the Run() method.
+type Main struct {
+	Program string
+	Debug   bool
+	Logf    func(format string, v ...interface{})
+
+	// This is the argv of the function.
+	Args []string
+
+	// Flags are a list of bool flags we use.
+	Flags map[string]bool
+
+	// Profiles is the list of profiles to use. Either the names from
+	// ~/.config/yesiscan/profiles/<name>.json or full paths.
+	Profiles []string
+
+	// RegexpPath specifies a path the regular expressions to use.
+	RegexpPath string
+}
+
+// Run is the main method for the Main struct. We use a struct as a way to pass
+// in a ton of different arguments in a cleaner way.
+func (obj *Main) Run() error {
+
+	Bool := func(k string) bool { // like the c.Bool function of cli context
+		val, _ := obj.Flags[k]
+		return val // if absent, we want false anyways
+	}
 
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
@@ -107,30 +172,29 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	if err != nil {
 		return err
 	}
-	logf("prefix: %s", safePrefixAbsDir)
+	obj.Logf("prefix: %s", safePrefixAbsDir)
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		logf("error finding home directory: %+v", err)
+		obj.Logf("error finding home directory: %+v", err)
 	}
 
 	// TODO: add more --flags to specify which parser/backends to use...
 
 	inputStrings := []string{}
 
-	for i := 0; i < c.NArg(); i++ {
-		s := c.Args().Get(i)
+	for _, s := range obj.Args {
 		if s == "-" { // stdin
 			var err error
-			s, err = stdinAsString(logf)
+			s, err = stdinAsString(obj.Logf)
 			if err != nil {
 				return err
 			}
 		}
 		inputStrings = append(inputStrings, s)
 	}
-	if c.NArg() == 0 { // if we didn't get any args, assume stdin
-		s, err := stdinAsString(logf)
+	if len(obj.Args) == 0 { // if we didn't get any args, assume stdin
+		s, err := stdinAsString(obj.Logf)
 		if err != nil {
 			return err
 		}
@@ -140,14 +204,14 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	iterators := []interfaces.Iterator{}
 	for _, s := range inputStrings {
 		trivialURIParser := &parser.TrivialURIParser{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf(format, v...)
+				obj.Logf(format, v...)
 			},
 			Prefix: safePrefixAbsDir,
 			Input:  s,
 		}
-		logf("input: %s", s)
+		obj.Logf("input: %s", s)
 
 		ixs, err := trivialURIParser.Parse() // parser returns iterators
 		if err != nil {
@@ -161,20 +225,20 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	// is there at least one yes-?
 	isAdditive := false ||
-		c.Bool("yes-backend-licenseclassifier") ||
-		c.Bool("yes-backend-spdx") ||
-		c.Bool("yes-backend-askalono") ||
-		c.Bool("yes-backend-scancode") ||
-		c.Bool("yes-backend-bitbake") ||
-		c.Bool("yes-backend-regexp") ||
+		Bool("yes-backend-licenseclassifier") ||
+		Bool("yes-backend-spdx") ||
+		Bool("yes-backend-askalono") ||
+		Bool("yes-backend-scancode") ||
+		Bool("yes-backend-bitbake") ||
+		Bool("yes-backend-regexp") ||
 		false
 
 	cliFlag := func(f string) bool {
-		if isAdditive && c.Bool(fmt.Sprintf("yes-backend-%s", f)) {
+		if isAdditive && Bool(fmt.Sprintf("yes-backend-%s", f)) {
 			return true
 		}
 
-		if !isAdditive && !c.Bool(fmt.Sprintf("no-backend-%s", f)) {
+		if !isAdditive && !Bool(fmt.Sprintf("no-backend-%s", f)) {
 			return true
 		}
 
@@ -183,9 +247,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	if cliFlag("licenseclassifier") {
 		licenseClassifierBackend := &backend.LicenseClassifier{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf("backend: "+format, v...)
+				obj.Logf("backend: "+format, v...)
 			},
 			IncludeHeaders:       false,
 			UseDefaultConfidence: false,
@@ -199,9 +263,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	if cliFlag("spdx") {
 		spdxBackend := &backend.Spdx{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf("backend: "+format, v...)
+				obj.Logf("backend: "+format, v...)
 			},
 		}
 		backends = append(backends, spdxBackend)
@@ -210,9 +274,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	if cliFlag("askalono") {
 		askalonoBackend := &backend.Askalono{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf("backend: "+format, v...)
+				obj.Logf("backend: "+format, v...)
 			},
 
 			// useful for testing before we add file name filtering
@@ -224,9 +288,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	if cliFlag("scancode") {
 		scancodeBackend := &backend.Scancode{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf("backend: "+format, v...)
+				obj.Logf("backend: "+format, v...)
 			},
 
 			// useful for testing before we add file name filtering
@@ -238,9 +302,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	if cliFlag("bitbake") {
 		bitbakeBackend := &backend.Bitbake{
-			Debug: debug,
+			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
-				logf("backend: "+format, v...)
+				obj.Logf("backend: "+format, v...)
 			},
 		}
 		backends = append(backends, bitbakeBackend)
@@ -249,8 +313,8 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	regexpPath := ""
 	if cliFlag("regexp") {
-		if c.IsSet("regexp-path") {
-			regexpPath = c.String("regexp-path")
+		if obj.RegexpPath != "" {
+			regexpPath = obj.RegexpPath
 		} else {
 			// TODO: implement proper XDG and maybe path precedence?
 			if home != "" {
@@ -262,9 +326,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	if regexpPath != "" {
 		regexpBackend := &backend.Regexp{
 			RegexpCore: &backend.RegexpCore{
-				Debug: debug,
+				Debug: obj.Debug,
 				Logf: func(format string, v ...interface{}) {
-					logf("backend: "+format, v...)
+					obj.Logf("backend: "+format, v...)
 				},
 			},
 
@@ -276,9 +340,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 
 	//if cliFlag("example") {
 	//	exampleBackend := &backend.ExampleClassifier{
-	//		Debug: debug,
+	//		Debug: obj.Debug,
 	//		Logf: func(format string, v ...interface{}) {
-	//			logf("backend: "+format, v...)
+	//			obj.Logf("backend: "+format, v...)
 	//		},
 	//	}
 	//	backends = append(backends, exampleBackend)
@@ -286,11 +350,10 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	//}
 
 	// load the profiles earlier than needed to catch json typos and commas
-	profiles := c.StringSlice("profile")
 	profilesData := make(map[string]*lib.ProfileData)
 	profilesData[lib.DefaultProfileName] = nil // add a "default" profile for fun
 	// TODO: implement proper XDG and maybe path precedence?
-	for _, x := range profiles {
+	for _, x := range obj.Profiles {
 		var err error
 		data := []byte{}
 		if home != "" {
@@ -305,7 +368,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		}
 
 		if err != nil {
-			logf("profile %s: %s", x, err)
+			obj.Logf("profile %s: %s", x, err)
 			err = nil // reset
 			continue
 		}
@@ -313,7 +376,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		buffer := bytes.NewBuffer(data)
 		if buffer.Len() == 0 {
 			// TODO: should this be an error, or just a silent ignore?
-			logf("profile %s: empty input file", x)
+			obj.Logf("profile %s: empty input file", x)
 			continue
 		}
 		decoder := json.NewDecoder(buffer)
@@ -321,13 +384,13 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 		var profileConfig lib.ProfileConfig // this gets populated during decode
 		if err := decoder.Decode(&profileConfig); err != nil {
 			// TODO: should this be an error, or just a silent ignore?
-			logf("profile %s: error decoding json output: %+v", err)
+			obj.Logf("profile %s: error decoding json output: %+v", err)
 			continue
 		}
 
 		list, err := licenses.StringsToLicenses(profileConfig.Licenses)
 		if err != nil {
-			logf("profile %s: error parsing license: %+v", err)
+			obj.Logf("profile %s: error parsing license: %+v", err)
 			continue
 		}
 
@@ -338,9 +401,9 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	}
 
 	core := &lib.Core{
-		Debug: debug,
+		Debug: obj.Debug,
 		Logf: func(format string, v ...interface{}) {
-			logf("core: "+format, v...)
+			obj.Logf("core: "+format, v...)
 		},
 		Backends:        backends,
 		Iterators:       iterators, // TODO: should this be passed into Run instead?
@@ -360,13 +423,12 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 	}
 
 	// remove all the invalid/missing profiles, keep in the original order
-	newProfiles := []string{}
-	for _, x := range profiles {
+	profiles := []string{}
+	for _, x := range obj.Profiles {
 		if _, exists := profilesData[x]; exists {
-			newProfiles = append(newProfiles, x)
+			profiles = append(profiles, x)
 		}
 	}
-	profiles = newProfiles
 	if len(profiles) == 0 {
 		// add a default profile
 		profiles = append(profiles, lib.DefaultProfileName)
@@ -378,7 +440,7 @@ func Main(c *cli.Context, program string, debug bool, logf func(format string, v
 			return err
 		}
 
-		logf("profile %s:\n%s", x, pro)
+		obj.Logf("profile %s:\n%s", x, pro)
 	}
 
 	return nil

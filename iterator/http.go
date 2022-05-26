@@ -41,21 +41,17 @@ import (
 
 const (
 	// HttpScheme is the standard prefix used for http URL's.
-	// TODO: support case-insensitive matches
 	HttpScheme = "http://"
 
 	// HttpsScheme is the standard prefix used for https URL's.
-	// TODO: support case-insensitive matches
 	HttpsScheme = "https://"
 
 	// HttpSchemeRaw is the standard prefix used for http URL's but without
 	// the scheme protocol separator which is <colon-slash-slash>.
-	// TODO: support case-insensitive matches
 	HttpSchemeRaw = "http"
 
 	// HttpsSchemeRaw is the standard prefix used for https URL's but
 	// without the scheme protocol separator which is <colon-slash-slash>.
-	// TODO: support case-insensitive matches
 	HttpsSchemeRaw = "https"
 
 	// UnknownFileName is the filename used when the URL doesn't have an
@@ -142,11 +138,13 @@ func (obj *Http) Validate() error {
 		return err // not that url.Parse ever really errors :/
 	}
 
-	if !strings.HasPrefix(obj.URL, HttpScheme) && !strings.HasPrefix(obj.URL, HttpsScheme) {
+	isHttp := strings.HasPrefix(strings.ToLower(obj.URL), HttpScheme)
+	isHttps := strings.HasPrefix(strings.ToLower(obj.URL), HttpsScheme)
+	if !isHttp && !isHttps {
 		return fmt.Errorf("invalid scheme")
 	}
 
-	if strings.HasPrefix(obj.URL, HttpScheme) && !obj.AllowHttp {
+	if isHttp && !obj.AllowHttp {
 		// did you mean https ?
 		return fmt.Errorf("the http scheme is not allowed without the allow http option")
 	}

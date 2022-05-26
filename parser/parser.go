@@ -69,13 +69,15 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 	}
 
 	// TODO: consider allowing HttpSchemeRaw as well (with a flag)
-	if u.Scheme == iterator.HttpSchemeRaw {
+	if strings.ToLower(u.Scheme) == iterator.HttpSchemeRaw {
 		return nil, fmt.Errorf("plain http is currently blocked, did you mean https?")
 	}
 
 	// this is a bit of a heuristic, but we'll go with it for now
 	// this is because we get https:// urls that are really github git URI's
-	if u.Scheme == iterator.HttpsSchemeRaw && (strings.HasSuffix(s, iterator.ZipExtension) || strings.HasSuffix(s, iterator.JarExtension)) {
+	isZip := strings.HasSuffix(strings.ToLower(s), iterator.ZipExtension)
+	isJar := strings.HasSuffix(strings.ToLower(s), iterator.JarExtension)
+	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && (isZip || isJar) {
 		iterator := &iterator.Http{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -154,10 +156,10 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 // TODO: we should expand this function as it's a heuristic. maybe we can do
 // better overall and not need a heuristic. time will tell...
 func isGit(u *url.URL) bool {
-	if u.Scheme == iterator.GitSchemeRaw {
+	if strings.ToLower(u.Scheme) == iterator.GitSchemeRaw {
 		return true
 	}
-	if u.Scheme == iterator.HttpsSchemeRaw && strings.ToLower(u.Host) == "github.com" {
+	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && strings.ToLower(u.Host) == "github.com" {
 		return true
 	}
 

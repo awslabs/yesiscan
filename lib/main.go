@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -63,7 +62,7 @@ type Main struct {
 
 // Run is the main method for the Main struct. We use a struct as a way to pass
 // in a ton of different arguments in a cleaner way.
-func (obj *Main) Run() error {
+func (obj *Main) Run(ctx context.Context) error {
 
 	Bool := func(k string) bool { // like the c.Bool function of cli context
 		val, _ := obj.Flags[k]
@@ -322,9 +321,6 @@ func (obj *Main) Run() error {
 		Iterators:       iterators, // TODO: should this be passed into Run instead?
 		ShutdownOnError: false,     // set to true for "perfect" scanning.
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	if err := core.Init(ctx); err != nil {
 		return errwrap.Wrapf(err, "could not initialize core")

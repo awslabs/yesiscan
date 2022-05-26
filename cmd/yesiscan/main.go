@@ -22,11 +22,13 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/awslabs/yesiscan/lib"
@@ -92,7 +94,11 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 
 				RegexpPath: c.String("regexp-path"),
 			}
-			return m.Run()
+
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+			defer stop()
+
+			return m.Run(ctx)
 		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},

@@ -161,7 +161,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			UID:      uid,
 		}
 
-		if absFile.HasExt(ZipExtension) || absFile.HasExt(JarExtension) {
+		if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) {
 			iterator := &Zip{
 				Debug: obj.Debug,
 				Logf: func(format string, v ...interface{}) {
@@ -251,7 +251,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 
 		if !safePath.IsDir() && safePath.IsAbs() {
 			absFile := safepath.UnsafeParseIntoAbsFile(safePath.Path())
-			if absFile.HasExt(ZipExtension) || absFile.HasExt(JarExtension) {
+			if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) {
 				iterator := &Zip{
 					Debug: obj.Debug,
 					Logf: func(format string, v ...interface{}) {

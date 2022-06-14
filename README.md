@@ -64,6 +64,15 @@ thing, but if you can find a corner case where it does not, please let us know.
 It also handles java `.jar` files since those are basically zip files in
 disguise.
 
+#### gzip
+
+The gzip iterator can decompress gzip files. While the gzip format allows
+multistream so that multiple files could exist inside one .gzip file, this is
+not currently supported and probably not desired here. This does what you expect
+and can match extensions like `.gz`, `.gzip`, and even `.tgz`. In the last case
+it will create a new file with a `.tar` extension so that the tar iterator can
+open it cleanly.
+
 #### http
 
 The http iterator can download files from http sources. Because many git sources

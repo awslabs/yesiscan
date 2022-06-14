@@ -56,7 +56,7 @@ func init() {
 	zipMutexes = make(map[string]*sync.Mutex)
 }
 
-// Zip is an iterator that takes a .zip URI to download and performs the unzip
+// Zip is an iterator that takes a .zip URI to open and performs the unzip
 // operation. It will eventually return an Fs iterator since there's no need for
 // it to know how to walk through a filesystem tree itself. It can use a local
 // cache so that future calls to the same URI won't have to waste cycles, but

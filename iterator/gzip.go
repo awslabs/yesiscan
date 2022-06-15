@@ -256,7 +256,18 @@ func (obj *Gzip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]inter
 		} else {
 			// a .tgz might have no name string for example
 			obj.Logf("gzip name is empty")
-			newName += "unknown"
+			newName = "unknown"
+			p := obj.Path.Path()
+			suffix := WhichSuffixInsensitive(p, GzipExtensions)
+			p = strings.TrimSuffix(p, suffix)
+			ix := strings.LastIndex(p, "/")
+			if ix != -1 {
+				p = p[ix+1:]
+				if len(p) > 0 {
+					newName = p
+				}
+				obj.Logf("gzip basename: %s", newName)
+			}
 		}
 
 		// add in a .tar if it's an embedded tar file

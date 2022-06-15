@@ -214,6 +214,34 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			return iterators, nil
 		}
 
+		isBzip2 := false
+		for _, x := range Bzip2Extensions {
+			if absFile.HasExtInsensitive(x) {
+				isBzip2 = true
+				break
+			}
+		}
+		if isBzip2 {
+			iterator := &Bzip2{
+				Debug: obj.Debug,
+				Logf: func(format string, v ...interface{}) {
+					obj.Logf(format, v...) // TODO: add a prefix?
+				},
+				Prefix: obj.Prefix,
+
+				Iterator: obj,
+
+				Path: absFile,
+
+				//AllowAnyExtension: false, // not helpful here
+			}
+
+			mu.Lock()
+			iterators = append(iterators, iterator)
+			mu.Unlock()
+			return iterators, nil
+		}
+
 		//return nil, errwrap.Wrapf(scan(ctx, obj.Path, info), "single file scan func failed")
 		// We want to ignore the ErrUnknownLicense results, and error if
 		// we hit any actual errors that we should bubble upwards.

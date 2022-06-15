@@ -73,6 +73,13 @@ and can match extensions like `.gz`, `.gzip`, and even `.tgz`. In the last case
 it will create a new file with a `.tar` extension so that the tar iterator can
 open it cleanly.
 
+#### bzip2
+
+The bzip2 iterator can decompress bzip and bzip2 files. This does what you
+expect and can match extensions like `.bz`, `.bz2`, `.bzip2`, and even `.tbz`
+and `.tbz2`. In the last two cases it will create a new file with a `.tar`
+extension so that the tar iterator can open it cleanly.
+
 #### http
 
 The http iterator can download files from http sources. Because many git sources

@@ -279,10 +279,6 @@ func (obj *Gzip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]inter
 
 		absDir := absFile.Dir() // get the absDir that absFile is in
 
-		// XXX: which mode to use? Maybe we are assuming a mode here
-		// because we haven't seen that dir yet! Maybe if we pre-sort
-		// all of the XXXzip file entries first...
-		//if err := os.MkdirAll(absDir.Path(), x.Mode()); err != nil {
 		if err := os.MkdirAll(absDir.Path(), os.ModePerm); err != nil {
 			// programming error
 			obj.unlock()

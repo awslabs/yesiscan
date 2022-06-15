@@ -138,6 +138,7 @@ func (obj *Main) Run(ctx context.Context) error {
 	// is there at least one yes-?
 	isAdditive := false ||
 		Bool("yes-backend-licenseclassifier") ||
+		Bool("yes-backend-pom") ||
 		Bool("yes-backend-spdx") ||
 		Bool("yes-backend-askalono") ||
 		Bool("yes-backend-scancode") ||
@@ -171,6 +172,17 @@ func (obj *Main) Run(ctx context.Context) error {
 		}
 		backends = append(backends, licenseClassifierBackend)
 		backendWeights[licenseClassifierBackend] = 1.0 // TODO: adjust as needed
+	}
+
+	if cliFlag("pom") {
+		pomBackend := &backend.Pom{
+			Debug: obj.Debug,
+			Logf: func(format string, v ...interface{}) {
+				obj.Logf("backend: "+format, v...)
+			},
+		}
+		backends = append(backends, pomBackend)
+		backendWeights[pomBackend] = 2.0 // TODO: adjust as needed
 	}
 
 	if cliFlag("spdx") {

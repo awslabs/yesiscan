@@ -64,12 +64,14 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			flags := make(map[string]bool)
 			names := []string{
 				"no-backend-licenseclassifier",
+				"no-backend-pom",
 				"no-backend-spdx",
 				"no-backend-askalono",
 				"no-backend-scancode",
 				"no-backend-bitbake",
 				"no-backend-regexp",
 				"yes-backend-licenseclassifier",
+				"yes-backend-pom",
 				"yes-backend-spdx",
 				"yes-backend-askalono",
 				"yes-backend-scancode",
@@ -102,6 +104,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},
+			&cli.BoolFlag{Name: "no-backend-pom"},
 			&cli.BoolFlag{Name: "no-backend-spdx"},
 			&cli.BoolFlag{Name: "no-backend-askalono"},
 			&cli.BoolFlag{Name: "no-backend-scancode"},
@@ -110,6 +113,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.StringFlag{Name: "regexp-path"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
 			&cli.BoolFlag{Name: "yes-backend-licenseclassifier"},
+			&cli.BoolFlag{Name: "yes-backend-pom"},
 			&cli.BoolFlag{Name: "yes-backend-spdx"},
 			&cli.BoolFlag{Name: "yes-backend-askalono"},
 			&cli.BoolFlag{Name: "yes-backend-scancode"},

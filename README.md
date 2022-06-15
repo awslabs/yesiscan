@@ -151,6 +151,13 @@ files on disk for intermediate processing which is suboptimal for most cases,
 although makes examination of incredibly large files possible. Some of the
 results are spurious so use it with a lower confidence interval.
 
+#### Pom
+
+Pom is a backend for parsing Project Object Model or POM files. It finds names
+of licenses in the licenses field of the `pom.xml` file which are commonly used
+by the Maven Project. This parser sometimes cannot identify licenses due to the
+name being written in its full form.
+
 #### Spdx
 
 This is a simple pure-golang, SPDX parser. It should find anything that is a

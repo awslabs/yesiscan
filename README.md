@@ -64,6 +64,14 @@ thing, but if you can find a corner case where it does not, please let us know.
 It also handles java `.jar` files since those are basically zip files in
 disguise.
 
+#### tar
+
+The tar iterator can extract tar files. It uses a heuristic to decide whether a
+file should be extracted or not. It usually does the right thing, but if you can
+find a corner case where it does not, please let us know. It only extracts
+regular files and directories. Symlinks and other special files will not be
+extracted, nor will they be scanned as they have zero bytes of data anyways.
+
 #### gzip
 
 The gzip iterator can decompress gzip files. While the gzip format allows

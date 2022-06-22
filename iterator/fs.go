@@ -186,6 +186,27 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			return iterators, nil
 		}
 
+		if absFile.HasExtInsensitive(TarExtension) {
+			iterator := &Tar{
+				Debug: obj.Debug,
+				Logf: func(format string, v ...interface{}) {
+					obj.Logf(format, v...) // TODO: add a prefix?
+				},
+				Prefix: obj.Prefix,
+
+				Iterator: obj,
+
+				Path: absFile,
+
+				//AllowAnyExtension: false, // not helpful here
+			}
+
+			mu.Lock()
+			iterators = append(iterators, iterator)
+			mu.Unlock()
+			return iterators, nil
+		}
+
 		isGzip := false
 		for _, x := range GzipExtensions {
 			if absFile.HasExtInsensitive(x) {
@@ -324,6 +345,29 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 						ZipExtension,
 						JarExtension,
 					},
+				}
+
+				mu.Lock()
+				iterators = append(iterators, iterator)
+				mu.Unlock()
+				// NOTE: if we return nil here, then we block
+				// any scanners that might want to handle a
+				// whole .zip file in one go specially...
+			}
+
+			if absFile.HasExtInsensitive(TarExtension) {
+				iterator := &Tar{
+					Debug: obj.Debug,
+					Logf: func(format string, v ...interface{}) {
+						obj.Logf(format, v...) // TODO: add a prefix?
+					},
+					Prefix: obj.Prefix,
+
+					Iterator: obj,
+
+					Path: absFile,
+
+					//AllowAnyExtension: false, // not helpful here
 				}
 
 				mu.Lock()

@@ -293,7 +293,9 @@ func (obj *Zip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 		}
 
 		// write to this location
-		dest, err := os.OpenFile(absFile.Path(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, x.Mode())
+		// XXX: which mode method?
+		//dest, err := os.OpenFile(absFile.Path(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, x.Mode())
+		dest, err := os.OpenFile(absFile.Path(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 		if err != nil {
 			obj.unlock()
 			return nil, errwrap.Wrapf(err, "error writing our file to disk at %s", absFile)

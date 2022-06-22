@@ -328,6 +328,11 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 
 		if !safePath.IsDir() && safePath.IsAbs() {
 			absFile := safepath.UnsafeParseIntoAbsFile(safePath.Path())
+			// TODO: it's time to create a generic "register"
+			// constructor that the other iterators can use to
+			// connect into this fs iterator... This will avoid a
+			// lot of code duplication and also prevent us from
+			// forgetting to add these everywhere...
 			if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) {
 				iterator := &Zip{
 					Debug: obj.Debug,

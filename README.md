@@ -271,7 +271,7 @@ Just run the binary with whatever input you want. For example:
 yesiscan https://github.com/purpleidea/mgmt/
 ```
 
-### Backends
+### Flags
 
 You can add flags to tell it which backends to include or remove. They're all
 included by default unless you choose which one to exclude with the

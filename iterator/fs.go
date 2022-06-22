@@ -382,6 +382,66 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 				// any scanners that might want to handle a
 				// whole .zip file in one go specially...
 			}
+
+			isGzip := false
+			for _, x := range GzipExtensions {
+				if absFile.HasExtInsensitive(x) {
+					isGzip = true
+					break
+				}
+			}
+			if isGzip {
+				iterator := &Gzip{
+					Debug: obj.Debug,
+					Logf: func(format string, v ...interface{}) {
+						obj.Logf(format, v...) // TODO: add a prefix?
+					},
+					Prefix: obj.Prefix,
+
+					Iterator: obj,
+
+					Path: absFile,
+
+					//AllowAnyExtension: false, // not helpful here
+				}
+
+				mu.Lock()
+				iterators = append(iterators, iterator)
+				mu.Unlock()
+				// NOTE: if we return nil here, then we block
+				// any scanners that might want to handle a
+				// whole .zip file in one go specially...
+			}
+
+			isBzip2 := false
+			for _, x := range Bzip2Extensions {
+				if absFile.HasExtInsensitive(x) {
+					isBzip2 = true
+					break
+				}
+			}
+			if isBzip2 {
+				iterator := &Bzip2{
+					Debug: obj.Debug,
+					Logf: func(format string, v ...interface{}) {
+						obj.Logf(format, v...) // TODO: add a prefix?
+					},
+					Prefix: obj.Prefix,
+
+					Iterator: obj,
+
+					Path: absFile,
+
+					//AllowAnyExtension: false, // not helpful here
+				}
+
+				mu.Lock()
+				iterators = append(iterators, iterator)
+				mu.Unlock()
+				// NOTE: if we return nil here, then we block
+				// any scanners that might want to handle a
+				// whole .zip file in one go specially...
+			}
 		}
 
 		if obj.Debug {

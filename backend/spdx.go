@@ -38,7 +38,7 @@ import (
 const (
 	// SpdxMaxBytesLine sets a larger maximum for file line scanning than
 	// the default of bufio.MaxScanTokenSize which is sort of small.
-	SpdxMaxBytesLine = 1024 * 1024 // 1 MiB
+	SpdxMaxBytesLine = 1024 * 1024 * 8 // 8 MiB
 
 	// magicStringSPDX is the string we look for when trying to find an ID.
 	magicStringSPDX = "SPDX-License-Identifier:"

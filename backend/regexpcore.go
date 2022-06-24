@@ -38,7 +38,7 @@ import (
 const (
 	// RegexpMaxBytesLine sets a larger maximum for file line scanning than
 	// the default of bufio.MaxScanTokenSize which is sort of small.
-	RegexpMaxBytesLine = 1024 * 1024 // 1 MiB
+	RegexpMaxBytesLine = 1024 * 1024 * 8 // 8 MiB
 )
 
 // RegexpCore is a simple backend that uses regular expressions to find certain

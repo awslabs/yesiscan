@@ -99,7 +99,10 @@ If you aren't getting the behaviour you expect, please let us know. Plain http
 
 The git iterator is able to recursively clone all of your git repository needs.
 It does this with a pure-golang implementation to avoid you needing a special
-installation on your machine.
+installation on your machine. There is currently a small bug or missing feature
+in the pure-golang version, and for compatibility with _all_ repositories, we
+currently make a single exec call to `git` in some of those cases. As a result,
+this will use the `git` binary that is found in your $PATH.
 
 ### Scanning
 

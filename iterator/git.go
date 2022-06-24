@@ -22,13 +22,17 @@
 package iterator
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/util/errwrap"
@@ -48,6 +52,10 @@ const (
 	// GitSchemeRaw is the standard prefix used for git repo UID's but
 	// without the scheme protocol separator which is <colon-slash-slash>.
 	GitSchemeRaw = "git"
+
+	// GitProgram is the name of the git executable. It is needed until we
+	// figure out how to make this pure golang.
+	GitProgram = "git"
 )
 
 var (
@@ -316,23 +324,96 @@ func (obj *Git) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 		hash = *pHash
 	}
 
-	if hash.IsZero() { // desired state not specified, use HEAD branch...
-		// XXX: I'm not sure this is the correct way to find the HEAD.
-		// XXX: eg: https://github.com/ansible/ansible uses `devel`.
-		// XXX: running: `git remote show origin`, shows: `HEAD branch: <branch>`
-		// XXX: how do I extract that without looking in: ~/.git/refs/remotes/origin/*
-		names := []string{"HEAD", "master", "main"}
-		var err error
-		var name string
-		for _, name = range names {
-			ref := plumbing.NewRemoteReferenceName("origin", name)
-			// git symbolic-ref refs/remotes/origin/HEAD ?
-			hash, err = getCommitFromRef(repository, ref)
-			if err == plumbing.ErrReferenceNotFound {
-				continue // this error means we continue
-			}
-			break // if a different error or a nil, we are done!
+	// XXX: We're currently commenting this out and using a `git cli` exec
+	// because it's unclear how to do this properly with this library. When
+	// we figure it out, we should get rid of the below exec code!
+	//if hash.IsZero() { // desired state not specified, use HEAD branch...
+	//	// XXX: I'm not sure this is the correct way to find the HEAD.
+	//	// XXX: eg: https://github.com/ansible/ansible uses `devel`.
+	//	// XXX: running: `git remote show origin`, shows: `HEAD branch: <branch>`
+	//	// XXX: how do I extract that without looking in: ~/.git/refs/remotes/origin/*
+	//	names := []string{"HEAD", "master", "main"}
+	//	var err error
+	//	var name string
+	//	for _, name = range names {
+	//		ref := plumbing.NewRemoteReferenceName("origin", name)
+	//		// git symbolic-ref refs/remotes/origin/HEAD ?
+	//		hash, err = getCommitFromRef(repository, ref)
+	//		if err == plumbing.ErrReferenceNotFound {
+	//			continue // this error means we continue
+	//		}
+	//		break // if a different error or a nil, we are done!
+	//	}
+	//	if err != nil { // check here if we found something!
+	//		obj.unlock()
+	//		return nil, errwrap.Wrapf(err, "could not find default HEAD in origin")
+	//	}
+	//	obj.Logf("default HEAD is at: %s", name)
+	//}
+
+	if hash.IsZero() {
+		// git symbolic-ref refs/remotes/origin/HEAD			# doesn't work in this clone!
+		// git remote show origin | grep 'HEAD branch' | cut -d' ' -f5	# does work
+
+		args := []string{"remote", "show", "origin"}
+
+		prog := fmt.Sprintf("%s %s", GitProgram, strings.Join(args, " "))
+
+		// TODO: add a progress bar of some sort somewhere
+		if obj.Debug {
+			obj.Logf("running: %s", prog)
 		}
+
+		// TODO: do we need to do the ^C handling?
+		// XXX: is the ^C context cancellation propagating into this correctly?
+		cmd := exec.CommandContext(ctx, GitProgram, args...)
+
+		cmd.Dir = directory
+		cmd.Env = []string{}
+
+		// ignore signals sent to parent process (we're in our own group)
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid: true,
+			Pgid:    0,
+		}
+
+		out, reterr := cmd.Output()
+		if reterr != nil {
+			if obj.Debug {
+				obj.Logf("error running: %s", prog)
+			}
+			return nil, errwrap.Wrapf(reterr, "error running: %s", prog)
+		}
+
+		buffer := bytes.NewBuffer(out)
+
+		// NOTE: we don't need to worry about `token too long` errors
+		// since we expect only a small amount of command output here
+		scanner := bufio.NewScanner(buffer)
+		prefix := "HEAD branch: "
+		name := ""
+		for scanner.Scan() {
+			s := strings.TrimSpace(scanner.Text())
+			if !strings.HasPrefix(s, prefix) {
+				continue
+			}
+			name = s[len(prefix):]
+			break
+		}
+		if err := scanner.Err(); err != nil {
+			obj.unlock()
+			return nil, errwrap.Wrapf(err, "could not read git command output")
+		}
+		if name == "" {
+			obj.unlock()
+			return nil, fmt.Errorf("could not find default HEAD in remote origin list")
+		}
+
+		ref := plumbing.NewRemoteReferenceName("origin", name)
+		// git symbolic-ref refs/remotes/origin/HEAD ?
+		hash, err = getCommitFromRef(repository, ref)
+		//if err == plumbing.ErrReferenceNotFound
+		// just deal with any error...
 		if err != nil { // check here if we found something!
 			obj.unlock()
 			return nil, errwrap.Wrapf(err, "could not find default HEAD in origin")

@@ -163,12 +163,18 @@ files on disk for intermediate processing which is suboptimal for most cases,
 although makes examination of incredibly large files possible. Some of the
 results are spurious so use it with a lower confidence interval.
 
+#### Cran
+
+Cran is a backend for `DESCRIPTION` files which are text files to store
+important [R](https://www.r-project.org/) package metadata. It finds names of
+licenses in the `License` field of the text file.
+
 #### Pom
 
 Pom is a backend for parsing Project Object Model or POM files. It finds names
-of licenses in the licenses field of the `pom.xml` file which are commonly used
-by the Maven Project. This parser sometimes cannot identify licenses due to the
-name being written in its full form.
+of licenses in the `licenses` field of the `pom.xml` file which are commonly
+used by the Maven Project. This parser sometimes cannot identify licenses due to
+the name being written in its full form.
 
 #### Spdx
 

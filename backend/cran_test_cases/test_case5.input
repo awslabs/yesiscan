@@ -1,0 +1,16 @@
+Title: Example DESCRIPTION Files
+Version: 1.4.1.9000
+License:
+Depends:
+    R (>= 3.4)
+Imports:
+    cli,
+    utils
+Suggests:
+    callr,
+    covr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+Collate:
+    'assertions.R'

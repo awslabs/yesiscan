@@ -26,9 +26,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/awslabs/yesiscan/interfaces"
@@ -486,14 +489,14 @@ func (obj *Fs) Close() error {
 
 // GitSubmodulesHelper is a helper that checks for a .gitmodules file and
 // produces the iterators that come from it.
-func (obj *Fs) GitSubmodulesHelper(ctx context.Context, path safepath.Path) ([]interfaces.Iterator, error) {
+func (obj *Fs) GitSubmodulesHelper(ctx context.Context, p safepath.Path) ([]interfaces.Iterator, error) {
 	// TODO: this could happen in init() if we wanted to optimize perf a bit
 	gitModulesRelFile, err := safepath.ParseIntoRelFile(".gitmodules")
 	if err != nil {
 		return nil, err // bug!
 	}
 
-	absFile, ok := path.(safepath.AbsFile)
+	absFile, ok := p.(safepath.AbsFile)
 	if !ok || absFile.Base().Cmp(gitModulesRelFile) != nil {
 		return nil, nil
 	}
@@ -526,6 +529,39 @@ func (obj *Fs) GitSubmodulesHelper(ctx context.Context, path safepath.Path) ([]i
 			obj.Logf("found git submodule named: %s", submodule.Name)
 		}
 
+		submoduleURL := submodule.URL
+		// We need to know how to recurse into submodules that use a
+		// relative URL syntax using the ../ notation. This means that
+		// they are relative to the parent module URL and as such they
+		// do this so they can use whatever parent auth/information such
+		// as https:// vs. git:// protocol and git@ type username and
+		// any other related information. A good example is what was
+		// done here in this repo:
+		// https://github.com/aws/amazon-cloudwatch-agent/commit/1c07e074c34707a4470707dbcc7a2fa743398efb
+		if strings.HasPrefix(submodule.URL, "../") {
+			if obj.Debug {
+				obj.Logf("submodule URL: %s", submodule.URL)
+			}
+			u, err := GitSubmoduleParentURL(obj)
+			if err != nil {
+				return nil, errwrap.Wrapf(err, "invalid relative URL: %s", submodule.URL)
+			}
+			if obj.Debug {
+				obj.Logf("submodule parent URL: %s", u)
+			}
+			parentURL, err := url.Parse(u)
+			if err != nil {
+				return nil, err
+			}
+
+			parentURL.Path = path.Join(parentURL.Path, submodule.URL)
+
+			submoduleURL = parentURL.String()
+			if obj.Debug {
+				obj.Logf("submodule resultant URL: %s", submoduleURL)
+			}
+		}
+
 		iterator := &Git{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -536,7 +572,7 @@ func (obj *Fs) GitSubmodulesHelper(ctx context.Context, path safepath.Path) ([]i
 			Iterator: obj,
 
 			//submodule.Path
-			URL: submodule.URL,
+			URL: submoduleURL,
 			//submodule.Branch // TODO: use this?
 			TrimGitSuffix: true,
 		}
@@ -544,4 +580,28 @@ func (obj *Fs) GitSubmodulesHelper(ctx context.Context, path safepath.Path) ([]i
 	}
 
 	return iterators, nil
+}
+
+// GitSubmoduleParentURL returns the URL of the parent git iterator. It only
+// traverses through fs iterators. It stops at the first git iterator. Anything
+// else and it's an error.
+func GitSubmoduleParentURL(iterator interfaces.Iterator) (string, error) {
+	if iterator == nil {
+		return "", fmt.Errorf("got nil iterator")
+	}
+
+	if it, ok := iterator.(*Git); ok {
+		return it.URL, nil // found the parent URL
+	}
+
+	// We could just run on *any* iterator, but that would mean this would
+	// allow the parent URL checking to pass through a .tar iterator
+	// boundary, which would be illogical and we don't want that.
+	if _, ok := iterator.(*Fs); ok {
+		return GitSubmoduleParentURL(iterator.GetIterator())
+		//return GitSubmoduleParentURL(it.GetIterator()) // same
+		//return GitSubmoduleParentURL(it.Iterator) // same
+	}
+
+	return "", fmt.Errorf("no iterator found")
 }

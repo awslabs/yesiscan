@@ -37,6 +37,12 @@ func ShellHyperlinkEncode(display string, uri string) string {
 	return "\033]8;;" + x + "\a" + display + "\033]8;;\a"
 }
 
+// HtmlHyperlinkEncode takes a string, and a uri and returns an html
+// representation of a hyperlink using the normal anchor tags.
+func HtmlHyperlinkEncode(display string, uri string) string {
+	return "<a href=" + uri + ">" + display + "</a>"
+}
+
 // SmartURI returns a "smart" URI given an internal UID that we have. The UID is
 // the special string that's the unique identifier that's returned from each
 // backend. We convert this into a "better" URI if we can. If we can't, we just

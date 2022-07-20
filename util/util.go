@@ -27,6 +27,16 @@ import (
 	"strings"
 )
 
+// StrInList returns true if a string exists inside a list, otherwise false.
+func StrInList(needle string, haystack []string) bool {
+	for _, x := range haystack {
+		if needle == x {
+			return true
+		}
+	}
+	return false
+}
+
 // ShellHyperlinkEncode takes a string, and a uri and returns a shell encoded
 // representation of a hyperlink using the modern shell escaping sequence. Idea
 // from: https://purpleidea.com/blog/2018/06/29/hyperlinks-in-gnome-terminal/

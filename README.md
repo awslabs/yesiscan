@@ -17,12 +17,23 @@ it.
 It has a novel architecture that makes it unique in the license analysis space,
 and which can be easily extended.
 
+If you choose to run it as a webui, the homepage looks like this:
+
+[![webui](art/webui.png)](art/webui.png)
+
+<details>
+<summary>The full results will then be shown like this.</summary>
+	<a href="art/results.png"><img src="art/results.png" /></a>
+</details>
+
 ## Architecture
 
 The `yesiscan` project is implemented as a library. This makes it easy to
 consume and re-use as either a library, CLI, API, WEBUI, BOTUI, or however else
 you'd like to use it. It is composed of a number of interfaces that roughly
 approximate the logical design.
+
+[![architecture](art/architecture.png)](art/architecture.png)
 
 ### Parsers
 

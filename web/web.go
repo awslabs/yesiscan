@@ -68,10 +68,13 @@ const (
 	serverAddr = ":8000"
 )
 
+var base64Yesiscan string
+
 //go:embed static/*
 var staticFs embed.FS
 
-var base64Yesiscan string
+// store name -> base64 encoded versions of all files in staticFs (images)
+var base64Files = make(map[string]string)
 
 // XXX: get this list from some globals?
 var flagNames = []string{
@@ -92,6 +95,26 @@ var flagNames = []string{
 func init() {
 	// encode once at startup
 	base64Yesiscan = base64.StdEncoding.EncodeToString(art.YesiscanSvg)
+
+	dir := "static"
+	files, err := staticFs.ReadDir(dir)
+	if err != nil {
+		panic(fmt.Sprintf("could not iterate over dirs: %+v", err))
+	}
+	for _, f := range files {
+		//fmt.Printf("name: %s\n", f.Name())
+		if f.IsDir() {
+			continue
+		}
+
+		b, err := staticFs.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			panic(fmt.Sprintf("could not read file: %+v", err))
+		}
+		//fmt.Printf("len: %s: %d\n", f.Name(), len(b))
+
+		base64Files[f.Name()] = base64.StdEncoding.EncodeToString(b)
+	}
 }
 
 // Server is our web server struct.
@@ -195,7 +218,7 @@ input[type=text] {
 	border: 2px solid #ccc;
 	border-radius: 4px;
 	font-size: 16px;
-	background-image: url('/static/icons8-search.svg');
+	background-image: url(data:image/svg+xml;base64,{{ index .base64Files "icons8-search.svg" }});
 	background-size: 25px 25px;
 	background-position: left 10px top 10px;
 	background-repeat: no-repeat;
@@ -295,7 +318,7 @@ https://stackoverflow.com/questions/35981567/preventing-change-in-colour-and-bac
 option:checked {
 	color: white;
 	-webkit-text-fill-color: white;
-	background: #4a90d9 repeat url("/static/4a90d9.jpg");
+	background: #4a90d9 repeat url(data:image/jpg;base64,{{ index .base64Files "4a90d9.jpg" }});
 }
 
 #error {
@@ -503,12 +526,13 @@ this project.
 	router.GET("/index.html", func(c *gin.Context) {
 
 		c.HTML(http.StatusOK, "index", gin.H{
-			"program":  obj.Program,
-			"image":    base64Yesiscan,
-			"status":   "success",
-			"flags":    obj.getCookieFlags(c),
-			"profiles": obj.getCookieProfiles(c),
-			"fancy":    fancyRendering,
+			"program":     obj.Program,
+			"image":       base64Yesiscan,
+			"base64Files": base64Files,
+			"status":      "success",
+			"flags":       obj.getCookieFlags(c),
+			"profiles":    obj.getCookieProfiles(c),
+			"fancy":       fancyRendering,
 		})
 	})
 
@@ -644,14 +668,15 @@ this project.
 			e += "</table>"
 
 			c.HTML(http.StatusOK, "index", gin.H{
-				"program":  obj.Program,
-				"image":    base64Yesiscan,
-				"status":   "success",
-				"body":     template.HTML(e), // avoid escaping the html!
-				"uri":      c.PostForm("uri"),
-				"flags":    obj.getCookieFlags(c),
-				"profiles": obj.getCookieProfiles(c),
-				"fancy":    fancyRendering,
+				"program":     obj.Program,
+				"image":       base64Yesiscan,
+				"base64Files": base64Files,
+				"status":      "success",
+				"body":        template.HTML(e), // avoid escaping the html!
+				"uri":         c.PostForm("uri"),
+				"flags":       obj.getCookieFlags(c),
+				"profiles":    obj.getCookieProfiles(c),
+				"fancy":       fancyRendering,
 			})
 			return
 		}
@@ -671,14 +696,15 @@ this project.
 			e += "</table>"
 
 			c.HTML(http.StatusOK, "index", gin.H{
-				"program":  obj.Program,
-				"image":    base64Yesiscan,
-				"status":   "success",
-				"body":     template.HTML(e), // avoid escaping the html!
-				"uri":      c.PostForm("uri"),
-				"flags":    obj.getCookieFlags(c),
-				"profiles": obj.getCookieProfiles(c),
-				"fancy":    fancyRendering,
+				"program":     obj.Program,
+				"image":       base64Yesiscan,
+				"base64Files": base64Files,
+				"status":      "success",
+				"body":        template.HTML(e), // avoid escaping the html!
+				"uri":         c.PostForm("uri"),
+				"flags":       obj.getCookieFlags(c),
+				"profiles":    obj.getCookieProfiles(c),
+				"fancy":       fancyRendering,
 			})
 			return
 		}
@@ -696,27 +722,29 @@ this project.
 			e += "</table>"
 
 			c.HTML(http.StatusOK, "index", gin.H{
-				"program":  obj.Program,
-				"image":    base64Yesiscan,
-				"status":   "success",
-				"body":     template.HTML(e), // avoid escaping the html!
-				"uri":      c.PostForm("uri"),
-				"flags":    obj.getCookieFlags(c),
-				"profiles": obj.getCookieProfiles(c),
-				"fancy":    fancyRendering,
+				"program":     obj.Program,
+				"image":       base64Yesiscan,
+				"base64Files": base64Files,
+				"status":      "success",
+				"body":        template.HTML(e), // avoid escaping the html!
+				"uri":         c.PostForm("uri"),
+				"flags":       obj.getCookieFlags(c),
+				"profiles":    obj.getCookieProfiles(c),
+				"fancy":       fancyRendering,
 			})
 			return
 		}
 
 		c.HTML(http.StatusOK, "index", gin.H{
-			"program":  obj.Program,
-			"image":    base64Yesiscan,
-			"status":   "success",
-			"body":     template.HTML(report.Html), // avoid escaping the html!
-			"uri":      report.Uri,
-			"flags":    report.Flags,
-			"profiles": report.Profiles,
-			"fancy":    fancyRendering,
+			"program":     obj.Program,
+			"image":       base64Yesiscan,
+			"base64Files": base64Files,
+			"status":      "success",
+			"body":        template.HTML(report.Html), // avoid escaping the html!
+			"uri":         report.Uri,
+			"flags":       report.Flags,
+			"profiles":    report.Profiles,
+			"fancy":       fancyRendering,
 		})
 	})
 

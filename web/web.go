@@ -69,7 +69,7 @@ const (
 )
 
 //go:embed static/*
-var staticFS embed.FS
+var staticFs embed.FS
 
 var base64Yesiscan string
 
@@ -490,10 +490,10 @@ this project.
 	router.HTMLRender = r
 
 	//	router.GET("/static/*filepath", func(c *gin.Context) {
-	//		c.FileFromFS(path.Join("/web/", c.Request.URL.Path), http.FS(staticFS))
+	//		c.FileFromFS(path.Join("/web/", c.Request.URL.Path), http.FS(staticFs))
 	//	})
 
-	router.StaticFS("/static", mustFS()) // our files from embed
+	router.StaticFS("/static", mustFs()) // our files from embed
 
 	// TODO: should we do it like this or just have one index?
 	router.GET("/", func(c *gin.Context) {
@@ -895,10 +895,10 @@ func ReturnOutputHtml(output *lib.Output) (string, error) {
 	return str, nil
 }
 
-// mustFS is a helper function so we can return static files that we added with
+// mustFs is a helper function so we can return static files that we added with
 // the embed package.
-func mustFS() http.FileSystem {
-	sub, err := fs.Sub(staticFS, "static")
+func mustFs() http.FileSystem {
+	sub, err := fs.Sub(staticFs, "static")
 	if err != nil {
 		panic(err)
 	}

@@ -660,7 +660,7 @@ this project.
 	})
 
 	router.GET("/report/", func(c *gin.Context) {
-		r := c.Query("r") // shortcut for c.Request.URL.Query().Get("lastname")
+		r := c.Query("r") // shortcut for c.Request.URL.Query().Get("r")
 		if r == "" {
 			//c.JSON(http.StatusBadRequest, gin.H{
 			//	"message": fmt.Errorf("empty request"),

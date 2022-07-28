@@ -370,7 +370,7 @@ option:checked {
 {{ $fkeys := sortedmapkeys .flags }}
 {{ $flags := .flags }}
 
-<table id="flagstable"><tr><td style="width: 0px;">flags:</td><td>
+<table id="flagstable"><tr><td style="width: 0px;">backends:</td><td>
 <table id="flags"><tr>
 {{ $n := len $fkeys }}
 {{ range $i, $v := $fkeys }}

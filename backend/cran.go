@@ -37,26 +37,28 @@ import (
 )
 
 const (
-	// CranMaxBytesLine sets a larger maximum for file line scanning than the
-	// default of bufio.MaxScanTokenSize which is sort of small.
+	// CranMaxBytesLine sets a larger maximum for file line scanning than
+	// the default of bufio.MaxScanTokenSize which is sort of small.
 	CranMaxBytesLine = 1024 * 1024 * 8 // 8 MiB
 
-	// CranLicensePrefix is the string we look for when trying to find a license.
+	// CranLicensePrefix is the string we look for when trying to find a
+	// license.
 	CranLicensePrefix = "License"
 
-	// CranFilename is the file name used by the R metadata files.
+	// CranFilename is the filename used by the R metadata files.
 	CranFilename = "DESCRIPTION"
 )
 
 var (
-	// ErrInvalidLicenseFormat is an error used in the CranDescriptionFileParser
-	// when licenses with invalid format are found.
-	ErrInvalidLicenseFormat error = errors.New("Invalid format in License(s)")
+	// ErrInvalidLicenseFormat is an error used in the
+	// CranDescriptionFileSubParser when licenses with invalid format are
+	// found.
+	ErrInvalidLicenseFormat = errors.New("invalid format in License(s)")
 
-	// stripTrashCran is used to replace all strings which include file and a file
-	// name and sometimes have a + or | before it. For example: "| file LICENSE".
-	// This also replaces new line characters.
-	// source: https://cran.rstudio.com/doc/manuals/r-devel/R-exts.html#Licensing
+	// stripTrashCran is used to replace all strings which include file and
+	// a filename and sometimes have a + or | before it. For example:
+	// "| file LICENSE". This also replaces newline characters. source:
+	// https://cran.rstudio.com/doc/manuals/r-devel/R-exts.html#Licensing
 	stripTrashCran = regexp.MustCompile(`(([+,|]?([\n ])*)file([\n ])+\w+\b([\n ])*)|\n`)
 )
 
@@ -72,11 +74,11 @@ func (obj *Cran) String() string {
 	return "cran"
 }
 
-// ScanData method is used to extract license ids from data and return licenses
-// based on the license ids.
+// ScanData is used to extract license ids from data and return licenses based
+// on the license ids.
 func (obj *Cran) ScanData(ctx context.Context, data []byte, info *interfaces.Info) (*interfaces.Result, error) {
-	// This check is taking place with the assumption that the file that will be
-	// scanned will have to be named "DESCRIPTION".
+	// This check is taking place with the assumption that the file that
+	// will be scanned will be named "DESCRIPTION".
 	if info.FileInfo.Name() != CranFilename {
 		return nil, nil // skip
 	}
@@ -87,34 +89,35 @@ func (obj *Cran) ScanData(ctx context.Context, data []byte, info *interfaces.Inf
 		return nil, nil // skip
 	}
 
-	// Appending \n to data because most of the times DESCRIPTION files do not have
-	// an EOF character which would lead the parser to fail.
+	// Appending a newline to the data because the parser needs to have a
+	// SECOND trailing newline for it to work properly. Who knows why...
 	data = append(data, "\n"...)
 	reader := bytes.NewReader(data)
-	// Parsing DESCRIPTION file.
-	parsedInformation, err := mail.ReadMessage(reader)
+	// Parse the DESCRIPTION file using RFC5322 which is also used for mail.
+	parsed, err := mail.ReadMessage(reader)
 	if err != nil {
 		return nil, errwrap.Wrapf(err, "parse error")
 	}
 
-	header := parsedInformation.Header
 	// Getting license information from License field.
-	cranlicenses, ok := header[CranLicensePrefix]
+	cranlicenseFields, ok := parsed.Header[CranLicensePrefix]
 	if !ok {
-		// This would mean we did not have a License field in DESCRIPTION file.
+		// This would mean we did not have a License field in the
+		// DESCRIPTION file.
 		return nil, nil
 	}
-	license := strings.Join(cranlicenses, " | ")
-	lids, err := CranDescriptionFileSubParser(license) // lid is licenseID
-	if lids == nil {
-		// If we did not get any license IDs we are returning nil and any error that
-		// we may encounter in the sub parser.
-		return nil, errwrap.Wrapf(err, "cran sub-parser error")
-	}
 	licenseMap := make(map[string]struct{})
-	for _, lid := range lids {
-		// TODO: should we normalize case here?
-		licenseMap[lid] = struct{}{}
+	var subErr error
+	for _, license := range cranlicenseFields {
+		lids, err := CranDescriptionFileSubParser(license) // lid is licenseID
+		if err != nil {
+			subErr = errwrap.Append(subErr, err) // store for later
+		}
+		// Our parser might have partial results even when it errors.
+		for _, lid := range lids {
+			// TODO: should we normalize case here?
+			licenseMap[lid] = struct{}{}
+		}
 	}
 
 	ids := []string{}
@@ -131,23 +134,32 @@ func (obj *Cran) ScanData(ctx context.Context, data []byte, info *interfaces.Inf
 			// TODO: populate other fields here?
 		}
 
-		// If we find an unknown SPDX ID, we don't want to error, because that would
-		// allow someone to put junk in their code to prevent us scanning it. Instead,
-		// create an invalid license but return it anyways. If we ever want to check
-		// validity, we know to expect failures.
-		// XXX: Some Cran licenses are not SPDX, therefore we might want to add an
-		// alias matcher in the future.
+		// If we find an unknown SPDX ID, we don't want to error,
+		// because that would allow someone to put junk in their code to
+		// prevent us scanning it. Instead, create an invalid license
+		// but return it anyways. If we ever want to check validity, we
+		// know to expect failures.
+		// XXX: Some Cran licenses are not SPDX, therefore we might want
+		// to add an alias matcher in the future.
 		if err := license.Validate(); err != nil {
 			//return nil, err
 			license = &licenses.License{
 				//SPDX: "",
 				Origin: "", // unknown!
 				Custom: id,
-				// TODO: populate other fields here (eg: found license text)
+				// TODO: populate other fields here
+				// (eg: found license text)
 			}
 		}
 
 		licenseList = append(licenseList, license)
+	}
+
+	// Finally pass through any sub parser error if we have no licenses.
+	if len(licenseList) == 0 {
+		// If we did not get any license IDs we are returning nil and
+		// any error that we may encounter in the sub parser.
+		return nil, errwrap.Wrapf(subErr, "cran sub-parser error")
 	}
 
 	result := &interfaces.Result{
@@ -155,15 +167,16 @@ func (obj *Cran) ScanData(ctx context.Context, data []byte, info *interfaces.Inf
 		Confidence: 1.0, // TODO: what should we put here?
 	}
 
-	// We perform the strange task of processing any partial results, and returning
-	// some even if we errored, because the spdx code seems to think this is better
-	// than no results. I'll do the same, but there is no guarantee the calling
-	// iterator will use these. (Currently it does not!)
-	return result, errwrap.Wrapf(err, "cran sub-parser error")
+	// We perform the strange task of processing any partial results, and
+	// returning some even if we errored, because the spdx code seems to
+	// think this is better than no results. I'll do the same, but there is
+	// no guarantee the calling iterator will use these. (Currently it does
+	// not!)
+	return result, errwrap.Wrapf(subErr, "cran sub-parser error")
 }
 
-// CranDescriptionFileSubParser is used to parse License field in DESCRIPTION
-// files.
+// CranDescriptionFileSubParser is used to parse the License field in
+// DESCRIPTION files.
 func CranDescriptionFileSubParser(input string) ([]string, error) {
 	if input == "" {
 		return nil, ErrInvalidLicenseFormat
@@ -171,17 +184,17 @@ func CranDescriptionFileSubParser(input string) ([]string, error) {
 	// Removing all files and new line characters from input.
 	input = stripTrashCran.ReplaceAllString(input, "")
 	if input == "" {
-		// We are returning nil, nil here because the input only consisted of files
-		// for Licenses.
+		// We are returning nil, nil here because the input only
+		// consisted of files for Licenses.
 		return nil, nil
 	}
 	var result []string
 	var err error
-	// XXX: I have only seen | in between license strings for now.
-	// source: https://cran.rstudio.com/doc/manuals/r-devel/R-exts.html#Licensing
+	// TODO: I have only seen | in between license strings for now. source:
+	// https://cran.rstudio.com/doc/manuals/r-devel/R-exts.html#Licensing
 	listLicenseNames := strings.Split(input, "|")
-	for i := range listLicenseNames {
-		license := strings.TrimSpace(listLicenseNames[i])
+	for _, x := range listLicenseNames {
+		license := strings.TrimSpace(x)
 		if license == "" {
 			err = ErrInvalidLicenseFormat
 			continue

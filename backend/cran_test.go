@@ -25,6 +25,7 @@ package backend_test
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -79,17 +80,17 @@ func TestCranDescriptionFileSubParser(t *testing.T) {
 		{"Artistic-2.0 | \n AGPL-3 \n + file any | -+-+##& | \n MIT + file LICENSE", []string{"Artistic-2.0", "AGPL-3", "-+-+##&", "MIT"}, nil},
 	}
 
-	for _, test := range tests {
-		output, err := backend.CranDescriptionFileSubParser(test.input)
+	for i, test := range tests {
+		out, err := backend.CranDescriptionFileSubParser(test.input)
 		if err != test.err {
-			t.Errorf("error %v, correct error %v", err, test.err)
+			t.Errorf("err: %v, exp err: %v", err, test.err)
 			continue
 		}
-		if !reflect.DeepEqual(output, test.output) {
-			t.Logf("output %v, correct output %v", output, test.output)
+		if !reflect.DeepEqual(out, test.output) {
+			t.Errorf("out: %v, exp out: %v", out, test.output)
 			continue
 		}
-		t.Logf("Success!")
+		t.Logf("test# %d succeeded!", i)
 	}
 }
 
@@ -98,6 +99,7 @@ func TestCranBackend(t *testing.T) {
 	inputfilePaths, err := filepath.Glob("./cran_test_cases/*.input")
 	if err != nil {
 		t.Errorf("error getting input files: %v", err)
+		return
 	}
 	cranBackend := &backend.Cran{
 		Debug: false,
@@ -105,7 +107,6 @@ func TestCranBackend(t *testing.T) {
 			t.Logf("backend: "+format, v...)
 		},
 	}
-	var ctx context.Context
 	for _, path := range inputfilePaths {
 		inputFileInfo, err := os.Stat(path)
 		if err != nil {
@@ -124,35 +125,54 @@ func TestCranBackend(t *testing.T) {
 			FileInfo: fileInfo,
 			UID:      iterator.FileScheme + path,
 		}
+
 		outputFilePath := strings.TrimSuffix(path, ".input") + ".output"
 		errorFilePath := strings.TrimSuffix(path, ".input") + ".error"
+		// TODO: if there is no error file, assume we expect no error
 		outputContents, outputFileErr := ioutil.ReadFile(outputFilePath)
-		errorMessageContents, errorFileErr := ioutil.ReadFile(errorFilePath)
-		if outputFileErr != nil || errorFileErr != nil {
+		if outputFileErr != nil {
 			t.Errorf("error reading output file: %v", outputFileErr)
+		}
+		errorContents, errorFileErr := ioutil.ReadFile(errorFilePath)
+		if errorFileErr != nil {
 			t.Errorf("error reading error file: %v", errorFileErr)
+		}
+		if outputFileErr != nil || errorFileErr != nil {
+			// give both statements a chance to tell us what's
+			// missing before we go on to the next test case
 			continue
 		}
-		correctOutput := strings.Trim(string(outputContents), "\n")
-		correctErrMessage := strings.Trim(string(errorMessageContents), "\n")
-		result, err := cranBackend.ScanData(ctx, data, info)
-		var output, errMessage string
+
+		expOut := strings.TrimSuffix(string(outputContents), "\n")
+		var expErr error
+		if s := strings.TrimSuffix(string(errorContents), "\n"); s != "" {
+			expErr = fmt.Errorf(s)
+		}
+
+		result, err := cranBackend.ScanData(context.Background(), data, info)
+		if (err == nil) != (expErr == nil) { // xor
+			t.Errorf("filename: %v, err: %v", path, err)
+			t.Errorf("filename: %v, exp: %v", path, expErr)
+			continue
+		}
+		if err != nil && expErr != nil {
+			if err.Error() != expErr.Error() { // compare the strings
+				t.Errorf("filename: %v, err: %v", path, err)
+				t.Errorf("filename: %v, exp: %v", path, expErr)
+				continue
+			}
+		}
+
+		var out string
 		if result != nil {
-			output = licenses.Join(result.Licenses)
+			out = licenses.Join(result.Licenses)
 		}
-		if err != nil {
-			errMessage = err.Error()
-		}
-		if output != correctOutput {
-			t.Logf("fileName: %v, output: %v, correct output: %v", path, output, correctOutput)
-			continue
-		}
-		if errMessage != correctErrMessage {
-			t.Errorf("fileName: %v, error: %v, correct error: %v", path, errMessage, correctErrMessage)
+		if out != expOut {
+			t.Errorf("filename: %v, out: %v", path, out)
+			t.Errorf("filename: %v, exp: %v", path, expOut)
 			continue
 		}
 
 		t.Logf("Success!")
 	}
-	return
 }

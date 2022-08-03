@@ -79,12 +79,14 @@ var base64Files = make(map[string]string)
 // XXX: get this list from some globals?
 var flagNames = []string{
 	"no-backend-licenseclassifier",
+	"no-backend-cran",
 	"no-backend-spdx",
 	"no-backend-askalono",
 	"no-backend-scancode",
 	"no-backend-bitbake",
 	"no-backend-regexp",
 	"yes-backend-licenseclassifier",
+	"yes-backend-cran",
 	"yes-backend-spdx",
 	"yes-backend-askalono",
 	"yes-backend-scancode",

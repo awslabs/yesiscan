@@ -80,6 +80,7 @@ var base64Files = make(map[string]string)
 var flagNames = []string{
 	"no-backend-licenseclassifier",
 	"no-backend-cran",
+	"no-backend-pom",
 	"no-backend-spdx",
 	"no-backend-askalono",
 	"no-backend-scancode",
@@ -87,6 +88,7 @@ var flagNames = []string{
 	"no-backend-regexp",
 	"yes-backend-licenseclassifier",
 	"yes-backend-cran",
+	"yes-backend-pom",
 	"yes-backend-spdx",
 	"yes-backend-askalono",
 	"yes-backend-scancode",

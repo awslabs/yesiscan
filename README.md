@@ -313,6 +313,23 @@ included by default unless you choose which one to exclude with the
 then you have to specify each backend that you want individually. You can get
 the full list of these flags with the `--help` flag.
 
+#### --quiet
+
+When this boolean flag is enabled, all log messages will be suppressed.
+
+#### --output-path
+
+When run with `--output-path <path>` the scan results will be saved to a file.
+This will overwrite whatever file contents are already there, so please use
+carefully. If you specify `-` as the file path, the stdout will be used. This
+will also cause the quiet flag to be enabled.
+
+#### --profile
+
+This flag may be used multiple times to enable different profiles. This is used
+by both the regular cli and also the web variant. The profiles system is
+described below.
+
 ### Profiles
 
 Most users might want to filter their results so that not all licenses are

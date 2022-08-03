@@ -129,6 +129,9 @@ type Server struct {
 
 	// reportPrefix is the path where we store and load the reports from.
 	reportPrefix safepath.AbsDir
+
+	// ginEngine is where we store a reference to the current gin engine.
+	ginEngine *gin.Engine
 }
 
 func (obj *Server) Run(ctx context.Context) error {
@@ -181,6 +184,7 @@ func (obj *Server) Run(ctx context.Context) error {
 	//	return err
 	//}
 	router := obj.Router()
+	obj.ginEngine = router
 
 	router.Run(serverAddr)
 
@@ -380,7 +384,11 @@ option:checked {
 <body>
 <div style="text-align: center;">
 
+{{ if not .save }}
 <h1 style="color:#042ea9; text-align: center;">welcome to <a href="/"><img alt="yesiscan logo" height="100px" style="vertical-align: middle;" src="data:image/svg+xml;base64,{{ .image }}" /></a></h1>
+{{ else }}
+<h3 style="color:#042ea9; text-align: center;">welcome to <a href="https://github.com/awslabs/yesiscan/"><img alt="yesiscan logo" height="40px" style="vertical-align: middle;" src="data:image/svg+xml;base64,{{ .image }}" /></a></h3>
+{{ end }}
 <form action="/scan/" method="POST">
 <div id="forminput" style="text-align: center;">
 	<input type="text" name="uri" placeholder="enter any uri" value="{{ .uri }}"></input>
@@ -436,6 +444,19 @@ option:checked {
 {{ end }}
 </tr></table>
 
+{{ end }}
+
+
+{{ if (not .save) }}
+{{ if ne .uuid "" }}
+
+<table id="profilestable"><tr><td style="width: 0px;">save:</td><td>
+<div id="profiles">
+<a href="/save/?r={{ .uuid }}"><img alt="save" height="40px" style="vertical-align: middle;" src="data:image/svg+xml;base64,{{ index .base64Files "icons8-download-from-the-cloud.svg" }}" /></a>
+</div>
+</td></tr></table>
+
+{{ end }}
 {{ end }}
 
 <!--<input class="submit" type="submit" value="submit">-->
@@ -507,10 +528,10 @@ this project.
 			return x + 1
 		},
 	}
-	r := multitemplate.NewRenderer()
-	r.AddFromStringsFuncs("index", funcMap, index)
+	renderer := multitemplate.NewRenderer()
+	renderer.AddFromStringsFuncs("index", funcMap, index)
 	//r.AddFromStringsFuncs("report", funcMap, report)
-	router.HTMLRender = r
+	router.HTMLRender = renderer
 
 	//	router.GET("/static/*filepath", func(c *gin.Context) {
 	//		c.FileFromFS(path.Join("/web/", c.Request.URL.Path), http.FS(staticFs))
@@ -533,6 +554,7 @@ this project.
 			"flags":       obj.getCookieFlags(c),
 			"profiles":    obj.getCookieProfiles(c),
 			"fancy":       fancyRendering,
+			"uuid":        "",
 		})
 	})
 
@@ -677,6 +699,7 @@ this project.
 				"flags":       obj.getCookieFlags(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
+				"uuid":        "",
 			})
 			return
 		}
@@ -705,6 +728,7 @@ this project.
 				"flags":       obj.getCookieFlags(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
+				"uuid":        "",
 			})
 			return
 		}
@@ -731,6 +755,7 @@ this project.
 				"flags":       obj.getCookieFlags(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
+				"uuid":        "",
 			})
 			return
 		}
@@ -745,7 +770,88 @@ this project.
 			"flags":       report.Flags,
 			"profiles":    report.Profiles,
 			"fancy":       fancyRendering,
+			"uuid":        r,
 		})
+	})
+
+	router.GET("/save/", func(c *gin.Context) {
+		r := c.Query("r")
+		if r == "" {
+			//c.JSON(http.StatusBadRequest, gin.H{
+			//	"message": fmt.Errorf("empty request"),
+			//})
+			e := `<table id="error">`
+			x := fmt.Errorf("empty request").Error()
+			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
+			e += "</table>"
+
+			c.HTML(http.StatusOK, "index", gin.H{
+				"program":     obj.Program,
+				"image":       base64Yesiscan,
+				"base64Files": base64Files,
+				"status":      "success",
+				"body":        template.HTML(e), // avoid escaping the html!
+				"uri":         c.PostForm("uri"),
+				"flags":       obj.getCookieFlags(c),
+				"profiles":    obj.getCookieProfiles(c),
+				"fancy":       fancyRendering,
+				"uuid":        "",
+			})
+			return
+		}
+		obj.Logf("report: %s", r)
+
+		// XXX: return a report in progress message if a job exists
+		report, err := obj.Load(r)
+		if err != nil {
+			//c.JSON(http.StatusBadRequest, gin.H{
+			//	"message": err.Error(),
+			//})
+			e := `<table id="error">`
+			x := err.Error()
+			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
+			e += "</table>"
+
+			c.HTML(http.StatusOK, "index", gin.H{
+				"program":     obj.Program,
+				"image":       base64Yesiscan,
+				"base64Files": base64Files,
+				"status":      "success",
+				"body":        template.HTML(e), // avoid escaping the html!
+				"uri":         c.PostForm("uri"),
+				"flags":       obj.getCookieFlags(c),
+				"profiles":    obj.getCookieProfiles(c),
+				"fancy":       fancyRendering,
+				"uuid":        r,
+			})
+			return
+		}
+
+		filename := fmt.Sprintf("%s.html", r)
+		h := gin.H{
+			"program":     obj.Program,
+			"image":       base64Yesiscan,
+			"base64Files": base64Files,
+			"status":      "success",
+			"body":        template.HTML(report.Html), // avoid escaping the html!
+			"uri":         report.Uri,
+			"flags":       report.Flags,
+			"profiles":    report.Profiles,
+			"fancy":       fancyRendering,
+			"uuid":        r,
+			"save":        true,
+		}
+		instance := obj.ginEngine.HTMLRender.Instance("index", h)
+
+		c.Status(http.StatusOK)
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+		c.Header("Content-Type", "application/octet-stream")
+		//c.Header("Content-Length", fmt.Sprintf("%d", len(data))) // TODO: figure out length
+
+		if err := instance.Render(c.Writer); err != nil {
+			// nothing we can do for the client afaict
+			obj.Logf("error during save: %+v", err)
+		}
 	})
 
 	//router.ServeHTTP(w, req) // pass through

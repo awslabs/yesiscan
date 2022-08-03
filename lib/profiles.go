@@ -68,10 +68,14 @@ type ProfileData struct {
 
 // SimpleProfiles is a simple way to filter the results. This is the first
 // filter function created and is mostly used for an initial POC. It is the
-// more complicated successor to the SimpleResults function.
+// more complicated successor to the SimpleResults function. Style can be
+// `ansi`, `html`, or `text`.
 func SimpleProfiles(results interfaces.ResultSet, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
 	if len(results) == 0 {
 		return "", fmt.Errorf("no results obtained")
+	}
+	if style != "ansi" && style != "html" && style != "text" {
+		return "", fmt.Errorf("invalid style: %s", style)
 	}
 
 	str := ""
@@ -148,18 +152,20 @@ Loop:
 		}
 
 		sort.Sort(sort.Reverse(SortedBackends(bs)))
-		display := uri // show the URI
-		smartURI := util.SmartURI(uri)
+		smartURI := util.SmartURI(uri) // make it useful to click on
 		if style == "ansi" {
-			hyperlink := util.ShellHyperlinkEncode(display, smartURI)
+			hyperlink := util.ShellHyperlinkEncode(uri, smartURI)
 			str += fmt.Sprintf("%s (%.2f%%)\n", hyperlink, f*100.0)
-			hasResults = true
 		}
 		if style == "html" {
-			hyperlink := util.HtmlHyperlinkEncode(display, smartURI)
+			hyperlink := util.HtmlHyperlinkEncode(uri, smartURI)
 			str += fmt.Sprintf("%s (%.2f%%)", hyperlink, f*100.0)
-			hasResults = true
 		}
+		if style == "text" {
+			// TODO: can we do better for text output?
+			str += fmt.Sprintf("%s (%.2f%%)\n", uri, f*100.0)
+		}
+		hasResults = true
 
 		if style == "html" {
 			str += "<ul>"
@@ -185,6 +191,7 @@ Loop:
 						if style == "html" {
 							r = `<span style="color: red;">` + r + "</span>"
 						}
+						// if style == "text" do nothing
 					}
 
 					ll = append(ll, r)
@@ -199,6 +206,10 @@ Loop:
 			if style == "html" {
 				s = fmt.Sprintf("<li>%s (%.2f/%.2f) %s (%.2f%%)</li>", backend.String(), weight, ttl, l, result.Confidence*100.0)
 			}
+			if style == "text" {
+				s = fmt.Sprintf("    %s (%.2f/%.2f)  %s (%.2f%%)\n", backend.String(), weight, ttl, l, result.Confidence*100.0)
+			}
+
 			str += s
 			hasResults = true
 			if !debug {

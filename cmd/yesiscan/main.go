@@ -31,6 +31,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/util/errwrap"
 
@@ -55,6 +56,13 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 		Usage: "scan code for legal things",
 		Action: func(c *cli.Context) error {
 
+			quiet := c.Bool("quiet")
+			outputPath := c.String("output-path")
+			if outputPath == "-" || quiet { // if output is stdout, noop logs
+				logf = func(format string, v ...interface{}) {
+					// noop
+				}
+			}
 			args := []string{}
 			for i := 0; i < c.NArg(); i++ {
 				s := c.Args().Get(i)
@@ -105,12 +113,38 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 				return err
 			}
 
-			s, err := lib.ReturnOutputConsole(output)
-			if err != nil {
-				return err
+			if outputPath != "" {
+				// FIXME: add a method to render an html version
+				// TODO: when we render an html version, should
+				// it look the same as the web `save` output?
+				s, err := lib.ReturnOutputFile(output)
+				if err != nil {
+					return err
+				}
+
+				if outputPath == "-" {
+					// NOTE: if we get asked for stdout, we
+					// turn off other output to make it sane
+					// TODO: should logs go to stderr instead?
+					quiet = true           // redundant for now
+					_, err := fmt.Print(s) // to stdout
+					return err
+				}
+
+				// TODO: is this the umask we should use?
+				if err := os.WriteFile(outputPath, []byte(s), interfaces.Umask); err != nil {
+					logf("could not write output file: %+v", err)
+				}
 			}
 
-			fmt.Print(s) // display it
+			if !quiet {
+				s, err := lib.ReturnOutputConsole(output)
+				if err != nil {
+					return err
+				}
+
+				fmt.Print(s) // display it
+			}
 
 			return nil
 		},
@@ -132,6 +166,8 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "yes-backend-bitbake"},
 			&cli.BoolFlag{Name: "yes-backend-regexp"},
 			&cli.StringSliceFlag{Name: "profile"},
+			&cli.StringFlag{Name: "output-path"},
+			&cli.BoolFlag{Name: "quiet"},
 		},
 		EnableBashCompletion: true,
 

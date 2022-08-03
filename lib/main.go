@@ -387,6 +387,22 @@ func ReturnOutputConsole(output *Output) (string, error) {
 	return s, nil
 }
 
+// ReturnOutputFile returns a string of output, formatted for a text file.
+func ReturnOutputFile(output *Output) (string, error) {
+	s := ""
+	summary := true // TODO: perhaps configure this somewhere or as a flag?
+	for _, x := range output.Profiles {
+		pro, err := SimpleProfiles(output.Results, output.ProfilesData[x], summary, output.BackendWeights, "text")
+		if err != nil {
+			return "", err
+		}
+
+		s += fmt.Sprintf("profile %s:\n%s\n", x, pro)
+	}
+
+	return s, nil
+}
+
 func stdinAsString(logf func(format string, v ...interface{})) (string, error) {
 	logf("waiting for stdin...")
 	b, err := io.ReadAll(os.Stdin)

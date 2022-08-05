@@ -164,7 +164,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			UID:      uid,
 		}
 
-		if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) {
+		if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) || absFile.HasExtInsensitive(WhlExtension) {
 			iterator := &Zip{
 				Debug: obj.Debug,
 				Logf: func(format string, v ...interface{}) {
@@ -180,6 +180,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 				AllowedExtensions: []string{
 					ZipExtension,
 					JarExtension,
+					WhlExtension,
 				},
 			}
 
@@ -336,7 +337,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 			// connect into this fs iterator... This will avoid a
 			// lot of code duplication and also prevent us from
 			// forgetting to add these everywhere...
-			if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) {
+			if absFile.HasExtInsensitive(ZipExtension) || absFile.HasExtInsensitive(JarExtension) || absFile.HasExtInsensitive(WhlExtension) {
 				iterator := &Zip{
 					Debug: obj.Debug,
 					Logf: func(format string, v ...interface{}) {
@@ -352,6 +353,7 @@ func (obj *Fs) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interfa
 					AllowedExtensions: []string{
 						ZipExtension,
 						JarExtension,
+						WhlExtension,
 					},
 				}
 

@@ -44,6 +44,10 @@ const (
 	// JarExtension is used for java .jar files. This is included here since
 	// they are just zip files that are named differently.
 	JarExtension = ".jar"
+
+	// WhlExtension is used for python .whl files. This is included here since
+	// they are just zip files that are named differently.
+	WhlExtension = ".whl"
 )
 
 var (

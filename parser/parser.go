@@ -77,7 +77,8 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 	// this is because we get https:// urls that are really github git URI's
 	isZip := strings.HasSuffix(strings.ToLower(s), iterator.ZipExtension)
 	isJar := strings.HasSuffix(strings.ToLower(s), iterator.JarExtension)
-	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && (isZip || isJar) {
+	isWhl := strings.HasSuffix(strings.ToLower(s), iterator.WhlExtension)
+	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && (isZip || isJar || isWhl) {
 		iterator := &iterator.Http{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {

@@ -285,7 +285,9 @@ Make sure you've cloned the project with `--recursive`. This is necessary
 because the project uses git submodules. The project also uses the `go mod`
 system, but the author thinks that forcing developers to pin dependencies is a
 big mistake, and prefers the `vendor/`+ git submodules approach that was easy
-with earlier versions of golang. To build this project, you will need golang
+with earlier versions of golang. If you forgot to use `--recursive`, you can
+instead run `git submodule init && git submodule update` in your project git
+root directory to fix this. To then build this project, you will need golang
 version `1.17` or greater. To build this project as a CLI, you will want to
 enter the `cmd/yesiscan/` directory and first run `go generate` to set the
 program name and build version. You can then produce the binary by running

@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/util/errwrap"
@@ -43,6 +44,10 @@ type Regexp struct {
 	// from. The struct is described below and an example is available in
 	// the examples folder.
 	Filename string
+
+	// FileNamePattern is a string which will contain a specific file 
+	// pattern and only scan files matching this specific pattern.
+	FileNamePattern string
 }
 
 func (obj *Regexp) String() string {
@@ -76,6 +81,14 @@ func (obj *Regexp) Setup(ctx context.Context) error {
 }
 
 func (obj *Regexp) ScanData(ctx context.Context, data []byte, info *interfaces.Info) (*interfaces.Result, error) {
+	match, err := regexp.MatchString(obj.FileNamePattern, info.FileInfo.Name())
+	if err != nil {
+		return nil, errwrap.Wrapf(err, "Incorrect file pattern")
+	}
+
+	if match == false {
+		return nil, nil // skip
+	}
 	return obj.RegexpCore.ScanData(ctx, data, info)
 }
 

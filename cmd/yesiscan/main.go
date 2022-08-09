@@ -196,7 +196,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 func main() {
 	debug := false // TODO: hardcoded for now
 	logf := func(format string, v ...interface{}) {
-		fmt.Printf("main: "+format+"\n", v...)
+		fmt.Fprintf(os.Stderr, "main: "+format+"\n", v...)
 	}
 	program = strings.TrimSpace(program)
 	version = strings.TrimSpace(version)

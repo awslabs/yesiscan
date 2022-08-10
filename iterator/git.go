@@ -61,6 +61,9 @@ const (
 var (
 	gitMapMutex *sync.Mutex
 	gitMutexes  map[string]*sync.Mutex
+	// separator is a new line character since Urls, Hash, Rev or Ref cannot
+	// possibly contain new line characters and is used to make unique hashes.
+	separator = "\n"
 )
 
 func init() {
@@ -172,17 +175,28 @@ func (obj *Git) Validate() error {
 		return fmt.Errorf("must specify a URL")
 	}
 
+	if strings.Contains(obj.URL, separator) {
+		return fmt.Errorf("provided URL is invalid")
+	}
+
 	if _, err := url.Parse(obj.URL); err != nil {
 		return err // not that url.Parse ever really errors :/
 	}
 
-	if obj.Hash != "" && !plumbing.IsHash(obj.Hash) { // IsHash checks if len is 40
-		return fmt.Errorf("provided hash is invalid")
+	if obj.Hash != "" {
+		if err := obj.validateHash(); err != nil {
+			return err
+		}
 	}
 	// TODO: can we validate ref somehow?
 
 	if obj.Rev != "" {
 		if err := obj.validateRef(); err != nil {
+			return err
+		}
+	}
+	if obj.Rev != "" {
+		if err := obj.validateRev(); err != nil {
 			return err
 		}
 	}
@@ -203,6 +217,9 @@ func (obj *Git) validateRef() error {
 	if obj.Ref == "" {
 		return fmt.Errorf("empty ref")
 	}
+	if strings.Contains(obj.Ref, separator) {
+		return fmt.Errorf("provided ref is invalid")
+	}
 	if obj.Ref == plumbing.HEAD.String() {
 		return nil
 	}
@@ -217,6 +234,33 @@ func (obj *Git) validateRef() error {
 	}
 
 	return fmt.Errorf("unknown ref: %s", obj.Ref)
+}
+
+// validateRev validates the Rev specifically.
+func (obj *Git) validateRev() error {
+	if obj.Rev == "" {
+		return fmt.Errorf("empty rev")
+	}
+	if strings.Contains(obj.Rev, separator) {
+		return fmt.Errorf("provided rev is invalid")
+	}
+
+	return nil
+}
+
+// validateHash validates the Hash specifically.
+func (obj *Git) validateHash() error {
+	if obj.Hash == "" {
+		return fmt.Errorf("empty hash")
+	}
+	if strings.Contains(obj.Hash, separator) {
+		return fmt.Errorf("provided hash is invalid")
+	}
+	if !plumbing.IsHash(obj.Hash) { // IsHash checks if len is 40
+		return fmt.Errorf("provided hash is invalid")
+	}
+
+	return nil
 }
 
 // GetParser returns a handle to the parent parser that built this iterator if
@@ -239,7 +283,10 @@ func (obj *Git) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 
 	// make a unique ID for the directory
 	// XXX: we can consider different algorithms or methods here later...
-	sum := sha256.Sum256([]byte(obj.URL))
+	// uniqueString is used to make a unique hash to store repositories with a
+	// different hash or ref or rev separately.
+	uniqueString := obj.URL + separator + obj.Hash + separator + obj.Ref + separator + obj.Rev
+	sum := sha256.Sum256([]byte(uniqueString))
 	hashRelDir, err := safepath.ParseIntoRelDir(fmt.Sprintf("%x", sum))
 	if err != nil {
 		return nil, err

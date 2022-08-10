@@ -32,6 +32,7 @@ import (
 	"github.com/awslabs/yesiscan/iterator"
 	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/safepath"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 // TrivialURIParser takes input as a single string. It expects either a URL or a
@@ -75,10 +76,8 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 
 	// this is a bit of a heuristic, but we'll go with it for now
 	// this is because we get https:// urls that are really github git URI's
-	isZip := strings.HasSuffix(strings.ToLower(s), iterator.ZipExtension)
-	isJar := strings.HasSuffix(strings.ToLower(s), iterator.JarExtension)
-	isWhl := strings.HasSuffix(strings.ToLower(s), iterator.WhlExtension)
-	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && (isZip || isJar || isWhl) {
+	isTar := strings.HasSuffix(strings.ToLower(s), iterator.TarExtension)
+	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && (isZip(s) || isGzip(s) || isTar || isBzip2(s)) {
 		iterator := &iterator.Http{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -96,6 +95,23 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 
 	if isGit(u) {
 		// TODO: for now, just assume it can only be a git iterator...
+		// Checking if commit hash exists at the end of the URL.
+		// examples of URLs of different hosts containing commit hashes:
+		// github: https://github.com/awslabs/yesiscan/commit/496d080bc7fe835511d7220f127e118d0881b792
+		// webrtc: https://webrtc.googlesource.com/src.git/+/c276aee4eda7b1a466b139838f20e790bd746309
+		// TODO: Might need to be generalized in the future as we add more URL patterns. 
+		hash := ""
+		index := strings.LastIndex(u.Path, "/")
+		pathSuffix := u.Path[index+1:]
+		if plumbing.IsHash(pathSuffix) {
+			hash = pathSuffix
+			// Here we are removing the parts of the URL which are there because
+			// of a commit hash such that the repository can be cloned properly.
+			u.Path = u.Path[:index]
+			index := strings.LastIndex(u.Path, "/")
+			u.Path = u.Path[:index]
+			s = u.String()
+		}
 		iterator := &iterator.Git{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -104,8 +120,8 @@ func (obj *TrivialURIParser) Parse() ([]interfaces.Iterator, error) {
 			Prefix:        obj.Prefix,
 			URL:           s, // TODO: pass a *net.URL instead?
 			TrimGitSuffix: true,
-
-			Parser: obj, // store a handle to the originator
+			Hash:          hash,
+			Parser:        obj, // store a handle to the originator
 		}
 		iterators = append(iterators, iterator)
 		return iterators, nil
@@ -160,9 +176,49 @@ func isGit(u *url.URL) bool {
 	if strings.ToLower(u.Scheme) == iterator.GitSchemeRaw {
 		return true
 	}
-	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw && strings.ToLower(u.Host) == "github.com" {
-		return true
+	if strings.ToLower(u.Scheme) == iterator.HttpsSchemeRaw {
+		hosts := []string{"github.com", "webrtc.googlesource.com"}
+		urlHost := strings.ToLower(u.Host)
+		for _, host := range hosts {
+			if urlHost == host {
+				return true
+			}
+		}
 	}
 
+	return false
+}
+
+// isZip is a helper method to determine whether a string has a Zip extension
+// suffix.
+func isZip(input string) bool {
+	extensions := []string{iterator.ZipExtension, iterator.JarExtension, iterator.WhlExtension}
+	for _, extension := range extensions {
+		if strings.HasSuffix(strings.ToLower(input), extension) {
+			return true
+		}
+	}
+	return false
+}
+
+// isGzip is a helper method to determine whether a string has a Gzip extension
+// suffix.
+func isGzip(input string) bool {
+	for _, extension := range iterator.GzipExtensions {
+		if strings.HasSuffix(strings.ToLower(input), extension) {
+			return true
+		}
+	}
+	return false
+}
+
+// isBzip2 is a helper method to determine whether a string has a Bzip2
+// extension suffix.
+func isBzip2(input string) bool {
+	for _, extension := range iterator.Bzip2Extensions {
+		if strings.HasSuffix(strings.ToLower(input), extension) {
+			return true
+		}
+	}
 	return false
 }

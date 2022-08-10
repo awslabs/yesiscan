@@ -58,6 +58,10 @@ type Main struct {
 
 	// RegexpPath specifies a path the regular expressions to use.
 	RegexpPath string
+
+	// RegexpFilePattern specifies files with specific file patterns
+	// to scan.
+	RegexpFilePattern string
 }
 
 // Run is the main method for the Main struct. We use a struct as a way to pass
@@ -248,7 +252,11 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 	}
 
 	regexpPath := ""
+	regexpFilePattern := ""
 	if cliFlag("regexp") {
+		if obj.RegexpFilePattern != "" {
+			regexpFilePattern = obj.RegexpFilePattern
+		}
 		if obj.RegexpPath != "" {
 			regexpPath = obj.RegexpPath
 		} else {
@@ -269,6 +277,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 			},
 
 			Filename: regexpPath,
+			FileNamePattern: regexpFilePattern,
 		}
 		backends = append(backends, regexpBackend)
 		backendWeights[regexpBackend] = 8.0 // TODO: adjust as needed

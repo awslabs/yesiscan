@@ -105,6 +105,8 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 				Profiles: c.StringSlice("profile"),
 
 				RegexpPath: c.String("regexp-path"),
+
+				RegexpFilePattern: c.String("regexp-file-pattern"),
 			}
 
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -160,6 +162,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "no-backend-bitbake"},
 			&cli.BoolFlag{Name: "no-backend-regexp"},
 			&cli.StringFlag{Name: "regexp-path"},
+			&cli.StringFlag{Name: "regexp-file-pattern"},
 			//&cli.BoolFlag{Name: "no-backend-example"},
 			&cli.BoolFlag{Name: "yes-backend-licenseclassifier"},
 			&cli.BoolFlag{Name: "yes-backend-cran"},

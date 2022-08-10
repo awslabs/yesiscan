@@ -235,7 +235,8 @@ Regexp is a backend that lets you match based on regular expressions. Nobody
 likes to do this, but it's very common. Put a config file at
 `~/.config/yesiscan/regexp.json` and then run the tool. An example file can be
 found in `[examples/regexp.json](examples/regexp.json)`. You can override the
-default path with the `--regexp-path` command line flag.
+default path with the `--regexp-path` command line flag. You can also add
+specific files that you want to be scanned by using `--regexp-file-pattern`.
 
 ### Caching
 

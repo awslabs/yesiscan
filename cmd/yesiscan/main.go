@@ -56,6 +56,8 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 		Name:  program,
 		Usage: "scan code for legal things",
 		Action: func(c *cli.Context) error {
+			logf("Hello from purpleidea! This is %s, version: %s", program, version)
+			defer logf("Done!")
 
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 			defer stop()
@@ -190,6 +192,9 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				Aliases: []string{"web"},
 				Usage:   "launch a web server mode",
 				Action: func(c *cli.Context) error {
+					logf("Hello from purpleidea! This is %s, version: %s", program, version)
+					defer logf("Done!")
+
 					return Web(c, program, version, debug, logf)
 				},
 				Flags: []cli.Flag{

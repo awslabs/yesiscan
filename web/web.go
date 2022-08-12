@@ -449,9 +449,6 @@ type Server struct {
 }
 
 func (obj *Server) Run(ctx context.Context) error {
-	obj.Logf("Hello from purpleidea! This is %s, version: %s", obj.Program, obj.Version)
-	defer obj.Logf("Done!")
-
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return err

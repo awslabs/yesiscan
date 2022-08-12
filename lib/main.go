@@ -84,9 +84,6 @@ type Main struct {
 // Run is the main method for the Main struct. We use a struct as a way to pass
 // in a ton of different arguments in a cleaner way.
 func (obj *Main) Run(ctx context.Context) (*Output, error) {
-	obj.Logf("Hello from purpleidea! This is %s, version: %s", obj.Program, obj.Version)
-	defer obj.Logf("Done!")
-
 	Bool := func(k string) bool { // like the c.Bool function of cli context
 		val, _ := obj.Flags[k]
 		return val // if absent, we want false anyways

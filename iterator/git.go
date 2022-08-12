@@ -223,8 +223,8 @@ func (obj *Git) validateRef() error {
 	if obj.Ref == plumbing.HEAD.String() {
 		return nil
 	}
-	Main := plumbing.NewBranchReferenceName("main") // not upstream
-	if obj.Ref == plumbing.Master.String() || obj.Ref == Main.String() {
+	main := plumbing.NewBranchReferenceName("main") // not upstream
+	if obj.Ref == plumbing.Master.String() || obj.Ref == main.String() {
 		return nil
 	}
 

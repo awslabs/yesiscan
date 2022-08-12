@@ -499,9 +499,26 @@ func (obj *Server) Run(ctx context.Context) error {
 	obj.ginEngine = router
 
 	obj.Logf("server: startup...")
-	router.Run(serverAddr)
 
-	return nil
+	//router.Run(serverAddr)
+	server := &http.Server{
+		Addr:    serverAddr,
+		Handler: router,
+	}
+
+	go func() {
+		<-ctx.Done()
+		if err := server.Close(); err != nil {
+			obj.Logf("server: closed badly: %+v", err)
+		}
+	}()
+
+	reterr := server.ListenAndServe()
+	if reterr == http.ErrServerClosed {
+		return nil
+	}
+
+	return errwrap.Wrapf(reterr, "server closed badly")
 }
 
 // func (obj *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {

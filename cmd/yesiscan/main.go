@@ -57,6 +57,8 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 		Usage: "scan code for legal things",
 		Action: func(c *cli.Context) error {
 
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+			defer stop()
 			quiet := c.Bool("quiet")
 			outputPath := c.String("output-path")
 			if outputPath == "-" || quiet { // if output is stdout, noop logs
@@ -108,9 +110,6 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 
 				RegexpPath: c.String("regexp-path"),
 			}
-
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-			defer stop()
 
 			output, err := m.Run(ctx)
 			if err != nil {

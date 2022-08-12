@@ -25,6 +25,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"os/signal"
+	"os"
 
 	"github.com/awslabs/yesiscan/web"
 
@@ -50,7 +52,8 @@ func Web(c *cli.Context, program, version string, debug bool, logf func(format s
 		Profiles: c.StringSlice("profile"),
 	}
 
-	ctx := context.TODO() // FIXME: add a signal handler
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
 	return server.Run(ctx)
 }

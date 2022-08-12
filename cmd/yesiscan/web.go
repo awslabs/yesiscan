@@ -35,10 +35,11 @@ import (
 // server.
 // TODO: replace the *cli.Context with a more general context that can be used
 // by all the different frontends.
-func Web(c *cli.Context, program string, debug bool, logf func(format string, v ...interface{})) error {
+func Web(c *cli.Context, program, version string, debug bool, logf func(format string, v ...interface{})) error {
 
 	server := &web.Server{
 		Program: program,
+		Version: version,
 
 		Debug: debug,
 		Logf: func(format string, v ...interface{}) {

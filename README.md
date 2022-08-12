@@ -332,6 +332,11 @@ This will overwrite whatever file contents are already there, so please use
 carefully. If you specify `-` as the file path, the stdout will be used. This
 will also cause the quiet flag to be enabled.
 
+#### --output-type
+
+When run with `--output-type html` the scan results will be output in html. This
+requires that you also specify `--output-path`.
+
 #### --profile
 
 This flag may be used multiple times to enable different profiles. This is used

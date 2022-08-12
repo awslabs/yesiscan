@@ -34,6 +34,7 @@ import (
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/web"
 
 	cli "github.com/urfave/cli/v2" // imports as package "cli"
 )
@@ -49,7 +50,7 @@ var program string
 var version string
 
 // CLI is the entry point for the CLI frontend.
-func CLI(program string, debug bool, logf func(format string, v ...interface{})) error {
+func CLI(program, version string, debug bool, logf func(format string, v ...interface{})) error {
 
 	app := &cli.App{
 		Name:  program,
@@ -96,6 +97,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 
 			m := &lib.Main{
 				Program: program,
+				Version: version,
 				Debug:   debug,
 				Logf:    logf,
 
@@ -122,6 +124,13 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 				s, err := lib.ReturnOutputFile(output)
 				if err != nil {
 					return err
+				}
+
+				if c.String("output-type") == "html" {
+					s, err = web.ReturnOutputHtml(output)
+					if err != nil {
+						return err
+					}
 				}
 
 				if outputPath == "-" {
@@ -171,6 +180,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 			&cli.BoolFlag{Name: "yes-backend-regexp"},
 			&cli.StringSliceFlag{Name: "profile"},
 			&cli.StringFlag{Name: "output-path"},
+			&cli.StringFlag{Name: "output-type"},
 			&cli.BoolFlag{Name: "quiet"},
 		},
 		EnableBashCompletion: true,
@@ -181,7 +191,7 @@ func CLI(program string, debug bool, logf func(format string, v ...interface{}))
 				Aliases: []string{"web"},
 				Usage:   "launch a web server mode",
 				Action: func(c *cli.Context) error {
-					return Web(c, program, debug, logf)
+					return Web(c, program, version, debug, logf)
 				},
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{Name: "profile"},
@@ -207,11 +217,10 @@ func main() {
 		return
 	}
 
-	logf("Hello from purpleidea! This is %s, version: %s", program, version)
 	// FIXME: We discard output from lib's that use `log` package directly.
 	log.SetOutput(io.Discard)
 
-	err := CLI(program, debug, logf) // TODO: put these args in an input struct
+	err := CLI(program, version, debug, logf) // TODO: put these args in an input struct
 	if err != nil {
 		if debug {
 			logf("failed: %+v", err)
@@ -221,6 +230,5 @@ func main() {
 		os.Exit(1)
 		return
 	}
-	logf("Done!")
 	os.Exit(0)
 }

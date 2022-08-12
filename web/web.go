@@ -76,145 +76,13 @@ var staticFs embed.FS
 // store name -> base64 encoded versions of all files in staticFs (images)
 var base64Files = make(map[string]string)
 
-// XXX: get this list from some globals?
-var flagNames = []string{
-	"no-backend-licenseclassifier",
-	"no-backend-cran",
-	"no-backend-pom",
-	"no-backend-spdx",
-	"no-backend-askalono",
-	"no-backend-scancode",
-	"no-backend-bitbake",
-	"no-backend-regexp",
-	"yes-backend-licenseclassifier",
-	"yes-backend-cran",
-	"yes-backend-pom",
-	"yes-backend-spdx",
-	"yes-backend-askalono",
-	"yes-backend-scancode",
-	"yes-backend-bitbake",
-	"yes-backend-regexp",
-}
+// icon by icons8: https://img.icons8.com/stickers/100/000000/search.svg
+// icon by icons8: https://img.icons8.com/stickers/100/000000/checkmark.svg
 
-func init() {
-	// encode once at startup
-	base64Yesiscan = base64.StdEncoding.EncodeToString(art.YesiscanSvg)
-
-	dir := "static"
-	files, err := staticFs.ReadDir(dir)
-	if err != nil {
-		panic(fmt.Sprintf("could not iterate over dirs: %+v", err))
-	}
-	for _, f := range files {
-		//fmt.Printf("name: %s\n", f.Name())
-		if f.IsDir() {
-			continue
-		}
-
-		b, err := staticFs.ReadFile(filepath.Join(dir, f.Name()))
-		if err != nil {
-			panic(fmt.Sprintf("could not read file: %+v", err))
-		}
-		//fmt.Printf("len: %s: %d\n", f.Name(), len(b))
-
-		base64Files[f.Name()] = base64.StdEncoding.EncodeToString(b)
-	}
-}
-
-// Server is our web server struct.
-type Server struct {
-	Program string
-	Debug   bool
-	Logf    func(format string, v ...interface{})
-
-	// Profiles is the list of profiles to allow. Either the names from
-	// ~/.config/yesiscan/profiles/<name>.json or full paths.
-	Profiles []string
-
-	// reportPrefix is the path where we store and load the reports from.
-	reportPrefix safepath.AbsDir
-
-	// ginEngine is where we store a reference to the current gin engine.
-	ginEngine *gin.Engine
-}
-
-func (obj *Server) Run(ctx context.Context) error {
-	obj.Logf("server: startup...")
-
-	userCacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(userCacheDir, interfaces.Umask); err != nil {
-		return err
-	}
-	prefix := filepath.Join(userCacheDir, obj.Program)
-	if err := os.MkdirAll(prefix, interfaces.Umask); err != nil {
-		return err
-	}
-	safePrefixAbsDir, err := safepath.ParseIntoAbsDir(prefix)
-	if err != nil {
-		return err
-	}
-	//obj.Logf("prefix: %s", safePrefixAbsDir)
-
-	//home, err := os.UserHomeDir()
-	//if err != nil {
-	//	obj.Logf("error finding home directory: %+v", err)
-	//}
-
-	relDir := safepath.UnsafeParseIntoRelDir("report/")
-	obj.reportPrefix = safepath.JoinToAbsDir(safePrefixAbsDir, relDir)
-	if err := os.MkdirAll(obj.reportPrefix.Path(), interfaces.Umask); err != nil {
-		return err
-	}
-	obj.Logf("report prefix: %s", obj.reportPrefix)
-
-	//readTimeout := 60*60
-	//writeTimeout := 60*60
-	//conn, err := net.Listen("tcp", serverAddr)
-	//if err != nil {
-	//	return err
-	//}
-	//defer conn.Close()
-	//serveMux := http.NewServeMux()
-	//server := &http.Server{
-	//	Addr: serverAddr,
-	//	Handler: serveMux,
-	//	ReadTimeout: time.Duration(readTimeout) * time.Second,
-	//	WriteTimeout: time.Duration(writeTimeout) * time.Second,
-	//}
-	//if err := server.Serve(conn); err != nil {
-	//	return err
-	//}
-	router := obj.Router()
-	obj.ginEngine = router
-
-	router.Run(serverAddr)
-
-	return nil
-}
-
-//func (obj *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-func (obj *Server) Router() *gin.Engine {
-	if !obj.Debug {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	router := gin.Default()
-
-	logWriter := &LogWriter{
-		Logf: obj.Logf,
-	}
-	router.Use(gin.LoggerWithWriter(logWriter))
-
-	// icon by icons8: https://img.icons8.com/stickers/100/000000/search.svg
-	// icon by icons8: https://img.icons8.com/stickers/100/000000/checkmark.svg
-
-	var index = `
+var indexTemplate = `
 <html>
 <head>
-<title>{{ .program }}</title>
+<title>{{ .program }}, version: {{ .version }}</title>
 <style>
 input[type=text]:focus {
 	background-color: lightblue;
@@ -499,41 +367,164 @@ this project.
 </html>
 `
 
+var templateName = "index"
+
+var funcMap = map[string]interface{}{
+	"hello": func() (string, error) {
+		return "@purpleidea says hi!", nil
+	},
+	"sortedmapkeys": func(m map[string]bool) ([]string, error) {
+		l := []string{}
+		for k := range m {
+			l = append(l, k)
+		}
+		sort.Strings(l)
+
+		return l, nil
+	},
+	"hasprefix": func(s, prefix string) (bool, error) {
+		return strings.HasPrefix(s, prefix), nil
+	},
+	"trimprefix": func(s, prefix string) (string, error) {
+		return strings.TrimPrefix(s, prefix), nil
+	},
+	"ischecked": func(flags map[string]bool, key string) (bool, error) {
+		val, ok := flags[key]
+		if !ok {
+			return false, nil
+		}
+		return val, nil
+	},
+	"plus1": func(x int) int { // https://go.dev/play/p/V94BPN0uKD
+		return x + 1
+	},
+}
+
+func init() {
+	indexTemplate = strings.TrimLeft(indexTemplate, "\n") // clean up the \n
+	if _, err := template.New(templateName).Funcs(funcMap).Parse(indexTemplate); err != nil {
+		panic(fmt.Sprintf("could not parse template: %+v", err))
+	}
+
+	// encode once at startup
+	base64Yesiscan = base64.StdEncoding.EncodeToString(art.YesiscanSvg)
+
+	dir := "static"
+	files, err := staticFs.ReadDir(dir)
+	if err != nil {
+		panic(fmt.Sprintf("could not iterate over dirs: %+v", err))
+	}
+	for _, f := range files {
+		//fmt.Printf("name: %s\n", f.Name())
+		if f.IsDir() {
+			continue
+		}
+
+		b, err := staticFs.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			panic(fmt.Sprintf("could not read file: %+v", err))
+		}
+		//fmt.Printf("len: %s: %d\n", f.Name(), len(b))
+
+		base64Files[f.Name()] = base64.StdEncoding.EncodeToString(b)
+	}
+}
+
+// Server is our web server struct.
+type Server struct {
+	Program string
+	Version string
+	Debug   bool
+	Logf    func(format string, v ...interface{})
+
+	// Profiles is the list of profiles to allow. Either the names from
+	// ~/.config/yesiscan/profiles/<name>.json or full paths.
+	Profiles []string
+
+	// reportPrefix is the path where we store and load the reports from.
+	reportPrefix safepath.AbsDir
+
+	// ginEngine is where we store a reference to the current gin engine.
+	ginEngine *gin.Engine
+}
+
+func (obj *Server) Run(ctx context.Context) error {
+	obj.Logf("Hello from purpleidea! This is %s, version: %s", obj.Program, obj.Version)
+	defer obj.Logf("Done!")
+
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(userCacheDir, interfaces.Umask); err != nil {
+		return err
+	}
+	prefix := filepath.Join(userCacheDir, obj.Program)
+	if err := os.MkdirAll(prefix, interfaces.Umask); err != nil {
+		return err
+	}
+	safePrefixAbsDir, err := safepath.ParseIntoAbsDir(prefix)
+	if err != nil {
+		return err
+	}
+	//obj.Logf("prefix: %s", safePrefixAbsDir)
+
+	//home, err := os.UserHomeDir()
+	//if err != nil {
+	//	obj.Logf("error finding home directory: %+v", err)
+	//}
+
+	relDir := safepath.UnsafeParseIntoRelDir("report/")
+	obj.reportPrefix = safepath.JoinToAbsDir(safePrefixAbsDir, relDir)
+	if err := os.MkdirAll(obj.reportPrefix.Path(), interfaces.Umask); err != nil {
+		return err
+	}
+	obj.Logf("report prefix: %s", obj.reportPrefix)
+
+	//readTimeout := 60*60
+	//writeTimeout := 60*60
+	//conn, err := net.Listen("tcp", serverAddr)
+	//if err != nil {
+	//	return err
+	//}
+	//defer conn.Close()
+	//serveMux := http.NewServeMux()
+	//server := &http.Server{
+	//	Addr: serverAddr,
+	//	Handler: serveMux,
+	//	ReadTimeout: time.Duration(readTimeout) * time.Second,
+	//	WriteTimeout: time.Duration(writeTimeout) * time.Second,
+	//}
+	//if err := server.Serve(conn); err != nil {
+	//	return err
+	//}
+	router := obj.Router()
+	obj.ginEngine = router
+
+	obj.Logf("server: startup...")
+	router.Run(serverAddr)
+
+	return nil
+}
+
+// func (obj *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (obj *Server) Router() *gin.Engine {
+	if !obj.Debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.Default()
+
+	logWriter := &LogWriter{
+		Logf: obj.Logf,
+	}
+	router.Use(gin.LoggerWithWriter(logWriter))
+
 	//var foo = template.Must(template.New("foo").Parse(``)
 	//router.SetHTMLTemplate(foo)
 
-	funcMap := map[string]interface{}{
-		"hello": func() (string, error) {
-			return "@purpleidea says hi!", nil
-		},
-		"sortedmapkeys": func(m map[string]bool) ([]string, error) {
-			l := []string{}
-			for k := range m {
-				l = append(l, k)
-			}
-			sort.Strings(l)
-
-			return l, nil
-		},
-		"hasprefix": func(s, prefix string) (bool, error) {
-			return strings.HasPrefix(s, prefix), nil
-		},
-		"trimprefix": func(s, prefix string) (string, error) {
-			return strings.TrimPrefix(s, prefix), nil
-		},
-		"ischecked": func(flags map[string]bool, key string) (bool, error) {
-			val, ok := flags[key]
-			if !ok {
-				return false, nil
-			}
-			return val, nil
-		},
-		"plus1": func(x int) int { // https://go.dev/play/p/V94BPN0uKD
-			return x + 1
-		},
-	}
 	renderer := multitemplate.NewRenderer()
-	renderer.AddFromStringsFuncs("index", funcMap, index)
+	renderer.AddFromStringsFuncs(templateName, funcMap, indexTemplate)
 	//r.AddFromStringsFuncs("report", funcMap, report)
 	router.HTMLRender = renderer
 
@@ -550,7 +541,7 @@ this project.
 
 	router.GET("/index.html", func(c *gin.Context) {
 
-		c.HTML(http.StatusOK, "index", gin.H{
+		c.HTML(http.StatusOK, templateName, gin.H{
 			"program":     obj.Program,
 			"image":       base64Yesiscan,
 			"base64Files": base64Files,
@@ -585,7 +576,7 @@ this project.
 
 		flags := make(map[string]bool)
 		values := url.Values{}
-		for _, f := range flagNames {
+		for _, f := range lib.FlagNames {
 			flags[f] = false // default so it shows up physically
 			val, exists := c.GetPostForm(f)
 			if !exists {
@@ -658,12 +649,14 @@ this project.
 			return "", err
 		}
 
-		s, err := ReturnOutputHtml(output)
+		s, err := ReturnOutputHtmlBody(output)
 		if err != nil {
 			return "", err
 		}
 
 		report := &Report{
+			Program:  obj.Program,
+			Version:  obj.Version,
 			Uri:      uri,
 			Flags:    flags,
 			Profiles: profilesMap,
@@ -693,8 +686,9 @@ this project.
 			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
 			e += "</table>"
 
-			c.HTML(http.StatusOK, "index", gin.H{
+			c.HTML(http.StatusOK, templateName, gin.H{
 				"program":     obj.Program,
+				"version":     obj.Version,
 				"image":       base64Yesiscan,
 				"base64Files": base64Files,
 				"status":      "success",
@@ -722,8 +716,9 @@ this project.
 			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
 			e += "</table>"
 
-			c.HTML(http.StatusOK, "index", gin.H{
+			c.HTML(http.StatusOK, templateName, gin.H{
 				"program":     obj.Program,
+				"version":     obj.Version,
 				"image":       base64Yesiscan,
 				"base64Files": base64Files,
 				"status":      "success",
@@ -749,8 +744,9 @@ this project.
 			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
 			e += "</table>"
 
-			c.HTML(http.StatusOK, "index", gin.H{
+			c.HTML(http.StatusOK, templateName, gin.H{
 				"program":     obj.Program,
+				"version":     obj.Version,
 				"image":       base64Yesiscan,
 				"base64Files": base64Files,
 				"status":      "success",
@@ -764,8 +760,9 @@ this project.
 			return
 		}
 
-		c.HTML(http.StatusOK, "index", gin.H{
-			"program":     obj.Program,
+		c.HTML(http.StatusOK, templateName, gin.H{
+			"program":     report.Program,
+			"version":     report.Version,
 			"image":       base64Yesiscan,
 			"base64Files": base64Files,
 			"status":      "success",
@@ -789,8 +786,9 @@ this project.
 			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
 			e += "</table>"
 
-			c.HTML(http.StatusOK, "index", gin.H{
+			c.HTML(http.StatusOK, templateName, gin.H{
 				"program":     obj.Program,
+				"version":     obj.Version,
 				"image":       base64Yesiscan,
 				"base64Files": base64Files,
 				"status":      "success",
@@ -816,8 +814,9 @@ this project.
 			e += fmt.Sprintf(`<tr><th style="text-align: center"><i>%s</i></th></tr>`, x)
 			e += "</table>"
 
-			c.HTML(http.StatusOK, "index", gin.H{
+			c.HTML(http.StatusOK, templateName, gin.H{
 				"program":     obj.Program,
+				"version":     obj.Version,
 				"image":       base64Yesiscan,
 				"base64Files": base64Files,
 				"status":      "success",
@@ -833,7 +832,8 @@ this project.
 
 		filename := fmt.Sprintf("%s.html", r)
 		h := gin.H{
-			"program":     obj.Program,
+			"program":     report.Program,
+			"version":     report.Version,
 			"image":       base64Yesiscan,
 			"base64Files": base64Files,
 			"status":      "success",
@@ -845,7 +845,7 @@ this project.
 			"uuid":        r,
 			"save":        true,
 		}
-		instance := obj.ginEngine.HTMLRender.Instance("index", h)
+		instance := obj.ginEngine.HTMLRender.Instance(templateName, h)
 
 		c.Status(http.StatusOK)
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
@@ -936,7 +936,7 @@ func (obj *Server) Load(uid string) (*Report, error) {
 func (obj *Server) getCookieFlags(c *gin.Context) map[string]bool {
 	// build the default set of flags to display on a new page
 	flags := make(map[string]bool)
-	for _, x := range flagNames {
+	for _, x := range lib.FlagNames {
 		flags[x] = true // default all to true
 	}
 
@@ -944,7 +944,7 @@ func (obj *Server) getCookieFlags(c *gin.Context) map[string]bool {
 	if cookie, err := c.Cookie(YesiscanCookieNameFlags); err == nil {
 		m, err := url.ParseQuery(cookie) // map[string][]string
 		if err == nil && cookie != "" {
-			for _, x := range flagNames {
+			for _, x := range lib.FlagNames {
 				flags[x] = false // default all to true
 			}
 			for name := range m {
@@ -992,6 +992,9 @@ func (obj *Server) getCookieProfiles(c *gin.Context) map[string]bool {
 
 // Report is the struct containing everything from scanning.
 type Report struct {
+	Program string `json:"program"`
+	Version string `json:"version"`
+
 	// Uri is the input URI used for the scan.
 	Uri string `json:"uri"`
 
@@ -1006,8 +1009,10 @@ type Report struct {
 	Html string `json:"html"`
 }
 
-// ReturnOutputHtml returns a string of output, formatted in html.
-func ReturnOutputHtml(output *lib.Output) (string, error) {
+// ReturnOutputHtmlBody returns a string of output, formatted in html. It is
+// the body portion of the larger full html output that comes from
+// ReturnOutputHtml.
+func ReturnOutputHtmlBody(output *lib.Output) (string, error) {
 	if len(output.Results) == 0 {
 		// handle this here, otherwise we'll get an error below...
 		s := `<table id="report">`
@@ -1031,6 +1036,57 @@ func ReturnOutputHtml(output *lib.Output) (string, error) {
 	}
 
 	return str, nil
+}
+
+// ReturnOutputHtml returns a string of output, formatted in html.
+func ReturnOutputHtml(output *lib.Output) (string, error) {
+
+	body, err := ReturnOutputHtmlBody(output)
+	if err != nil {
+		return "", err
+	}
+	profiles := make(map[string]bool)
+	for _, x := range output.Profiles {
+		profiles[x] = true
+	}
+
+	flags := make(map[string]bool)
+	for _, x := range output.Flags {
+		flags[x] = true
+	}
+
+	args := fmt.Sprintf("%+v", output.Args)
+	if len(output.Args) == 1 {
+		args = output.Args[0]
+	}
+
+	data := gin.H{ // XXX: change to map[string]interface{} ?
+		"program":     output.Program,
+		"version":     output.Version, // XXX: use me in template
+		"image":       base64Yesiscan,
+		"base64Files": base64Files,
+		"status":      "success",
+		"body":        template.HTML(body), // avoid escaping the html!
+		"uri":         args,                // XXX: display this differently?
+		"flags":       flags,
+		"profiles":    profiles,
+		"fancy":       fancyRendering,
+		"uuid":        "",
+	}
+
+	// TODO: why is name used twice? Does this even make sense?
+	t, err := template.New(templateName).Funcs(funcMap).Parse(indexTemplate)
+	if err != nil {
+		return "", err
+	}
+
+	buf := new(bytes.Buffer) // we'll write to here
+
+	if err := t.ExecuteTemplate(buf, templateName, data); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 // mustFs is a helper function so we can return static files that we added with

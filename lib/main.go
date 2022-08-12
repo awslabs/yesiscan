@@ -39,10 +39,31 @@ import (
 	"github.com/awslabs/yesiscan/util/safepath"
 )
 
+// FlagsNames is a list of all the backend flags used.
+var FlagNames = []string{
+	"no-backend-licenseclassifier",
+	"no-backend-cran",
+	"no-backend-pom",
+	"no-backend-spdx",
+	"no-backend-askalono",
+	"no-backend-scancode",
+	"no-backend-bitbake",
+	"no-backend-regexp",
+	"yes-backend-licenseclassifier",
+	"yes-backend-cran",
+	"yes-backend-pom",
+	"yes-backend-spdx",
+	"yes-backend-askalono",
+	"yes-backend-scancode",
+	"yes-backend-bitbake",
+	"yes-backend-regexp",
+}
+
 // Main is the general entry point for running this software. Populate this
 // struct with the inputs and then call the Run() method.
 type Main struct {
 	Program string
+	Version string
 	Debug   bool
 	Logf    func(format string, v ...interface{})
 
@@ -63,6 +84,8 @@ type Main struct {
 // Run is the main method for the Main struct. We use a struct as a way to pass
 // in a ton of different arguments in a cleaner way.
 func (obj *Main) Run(ctx context.Context) (*Output, error) {
+	obj.Logf("Hello from purpleidea! This is %s, version: %s", obj.Program, obj.Version)
+	defer obj.Logf("Done!")
 
 	Bool := func(k string) bool { // like the c.Bool function of cli context
 		val, _ := obj.Flags[k]
@@ -367,7 +390,18 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		profiles = append(profiles, DefaultProfileName)
 	}
 
+	flags := []string{}
+	for _, x := range FlagNames {
+		if Bool(x) {
+			flags = append(flags, x)
+		}
+	}
+
 	return &Output{
+		Program:        obj.Program,
+		Version:        obj.Version,
+		Args:           inputStrings,
+		Flags:          flags,
 		Results:        results,
 		Profiles:       profiles,
 		ProfilesData:   profilesData,
@@ -377,6 +411,11 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 
 // Output combines all of the returned data from Run() into a consistent form.
 type Output struct {
+	Program string
+	Version string
+
+	Args           []string
+	Flags          []string
 	Results        map[string]map[interfaces.Backend]*interfaces.Result
 	Profiles       []string
 	ProfilesData   map[string]*ProfileData

@@ -188,9 +188,9 @@ func (obj *Git) Validate() error {
 			return err
 		}
 	}
-	// TODO: can we validate ref somehow?
+	// TODO: can we validate rev somehow?
 
-	if obj.Rev != "" {
+	if obj.Ref != "" {
 		if err := obj.validateRef(); err != nil {
 			return err
 		}

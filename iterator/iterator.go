@@ -34,6 +34,7 @@ var (
 	// list is alphabetical and has a comment for each element.
 	SkipPathExtensions = []string{
 		".bmp",       // image format
+		".csv",       // data format
 		".cvsignore", // csv ignore file
 		".doc",       // document format
 		".eps",       // image format

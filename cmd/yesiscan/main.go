@@ -23,16 +23,23 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha512"
 	_ "embed"
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"math/big"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
+	"github.com/awslabs/yesiscan/s3"
 	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/web"
 
@@ -52,6 +59,24 @@ var version string
 // CLI is the entry point for the CLI frontend.
 func CLI(program, version string, debug bool, logf func(format string, v ...interface{})) error {
 
+	flags := []cli.Flag{
+		&cli.StringFlag{Name: "regexp-path"},
+		&cli.StringSliceFlag{Name: "profile"},
+		&cli.StringFlag{Name: "output-s3bucket"},
+		&cli.StringFlag{Name: "output-path"},
+		&cli.StringFlag{Name: "output-type"},
+		&cli.BoolFlag{Name: "quiet"},
+	}
+	// build the yes and no backend flags
+	for _, b := range lib.Backends {
+		f := &cli.BoolFlag{Name: fmt.Sprintf("no-backend-%s", b)}
+		flags = append(flags, f)
+	}
+	for _, b := range lib.Backends {
+		f := &cli.BoolFlag{Name: fmt.Sprintf("yes-backend-%s", b)}
+		flags = append(flags, f)
+	}
+
 	app := &cli.App{
 		Name:  program,
 		Usage: "scan code for legal things",
@@ -63,7 +88,10 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 			defer stop()
 			quiet := c.Bool("quiet")
 			outputPath := c.String("output-path")
-			if outputPath == "-" || quiet { // if output is stdout, noop logs
+			region := s3.DefaultRegion                    // XXX: get from config
+			outputS3Bucket := c.String("output-s3bucket") // XXX: get from config
+			bigIntStr := ""                               // for our int
+			if outputPath == "-" || quiet {               // if output is stdout, noop logs
 				logf = func(format string, v ...interface{}) {
 					// noop
 				}
@@ -74,28 +102,62 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				args = append(args, s)
 			}
 
-			flags := make(map[string]bool)
-			names := []string{
-				"no-backend-licenseclassifier",
-				"no-backend-cran",
-				"no-backend-pom",
-				"no-backend-spdx",
-				"no-backend-askalono",
-				"no-backend-scancode",
-				"no-backend-bitbake",
-				"no-backend-regexp",
-				"yes-backend-licenseclassifier",
-				"yes-backend-cran",
-				"yes-backend-pom",
-				"yes-backend-spdx",
-				"yes-backend-askalono",
-				"yes-backend-scancode",
-				"yes-backend-bitbake",
-				"yes-backend-regexp",
+			// is there at least one yes-?
+			isAdditive := false
+			for _, f := range lib.Backends {
+				if c.Bool(fmt.Sprintf("yes-backend-%s", f)) {
+					isAdditive = true
+				}
 			}
-			for _, f := range names {
-				if c.IsSet(f) {
-					flags[f] = c.Bool(f)
+
+			// isBackendEnabled specifies if a particular backend
+			// should be enabled based on the lookup of the flags.
+			isBackendEnabled := func(f string) bool {
+				if isAdditive && c.Bool(fmt.Sprintf("yes-backend-%s", f)) {
+					return true
+				}
+
+				if !isAdditive && !c.Bool(fmt.Sprintf("no-backend-%s", f)) {
+					return true
+				}
+
+				return false
+			}
+
+			backends := make(map[string]bool)
+			for _, b := range lib.Backends {
+				backends[b] = isBackendEnabled(b)
+			}
+
+			if outputS3Bucket != "" { // do a test-for-auth run
+
+				bigInt, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+				if err != nil {
+					return errwrap.Wrapf(err, "random number generation error")
+				}
+				bigIntStr = bigInt.String()
+
+				objectName := program // arbitrary, but unique
+				contentType := "text/plain"
+				inputs := &s3.Inputs{
+					Region:            region,
+					BucketName:        outputS3Bucket,
+					CreateBucket:      true,
+					ObjectName:        objectName,
+					GrantReadAllUsers: true,
+					ContentType:       &contentType,
+					Data:              []byte(program), // arbitrary
+					Debug:             debug,
+					Logf: func(format string, v ...interface{}) {
+						logf("s3: "+format, v...)
+					},
+				}
+				// XXX: find a way to check if credentials are
+				// good, early in the operation before the scan,
+				// otherwise we will end up running a whole scan
+				// and then throwing away the results...
+				if _, err := s3.Store(ctx, inputs); err != nil {
+					return errwrap.Wrapf(err, "s3 setup error")
 				}
 			}
 
@@ -105,8 +167,8 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				Debug:   debug,
 				Logf:    logf,
 
-				Args:  args,
-				Flags: flags,
+				Args:     args,
+				Backends: backends,
 
 				Profiles: c.StringSlice("profile"),
 
@@ -118,31 +180,79 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				return err
 			}
 
-			if outputPath != "" {
-				// FIXME: add a method to render an html version
+			s := ""
+			if outputPath != "" || outputS3Bucket != "" {
+				var err error
 				// TODO: when we render an html version, should
 				// it look the same as the web `save` output?
-				s, err := lib.ReturnOutputFile(output)
-				if err != nil {
-					return err
-				}
-
-				if c.String("output-type") == "html" {
-					s, err = web.ReturnOutputHtml(output)
-					if err != nil {
+				if c.String("output-type") == "text" {
+					if s, err = lib.ReturnOutputFile(output); err != nil {
+						return err
+					}
+				} else {
+					if s, err = web.ReturnOutputHtml(output); err != nil {
 						return err
 					}
 				}
+			}
 
-				if outputPath == "-" {
-					// NOTE: if we get asked for stdout, we
-					// turn off other output to make it sane
-					// TODO: should logs go to stderr instead?
-					quiet = true           // redundant for now
-					_, err := fmt.Print(s) // to stdout
-					return err
+			if outputS3Bucket != "" {
+				ext := "html"
+				contentType := "text/html"
+				if c.String("output-type") == "text" {
+					ext = "txt"
+					contentType = "text/plain"
 				}
 
+				// make a unique ID for the file
+				// XXX: we can consider different algorithms or methods here later...
+				// We want this hash to be basically impossible
+				// to guess, so that you can only get it if you
+				// have the secret link.
+				if bigIntStr == "" { // make sure we really have one
+					// programming error
+					return fmt.Errorf("random number generation logic error")
+				}
+				now := strconv.FormatInt(time.Now().UnixMilli(), 10) // itoa but int64
+				sum := sha512.Sum512([]byte(s + now + bigIntStr))    // XXX: for now
+				uid := fmt.Sprintf("%x", sum)
+				objectName := fmt.Sprintf("%s-%s.%s", program, uid, ext) // TODO: arbitrary
+
+				inputs := &s3.Inputs{
+					Region:            region,
+					BucketName:        outputS3Bucket,
+					CreateBucket:      true,
+					ObjectName:        objectName,
+					GrantReadAllUsers: true,
+					ContentType:       &contentType,
+					Data:              []byte(s),
+					Debug:             debug,
+					Logf: func(format string, v ...interface{}) {
+						logf("s3: "+format, v...)
+					},
+				}
+				// XXX: find a way to check if credentials are
+				// good, early in the operation before the scan,
+				// otherwise we will end up running a whole scan
+				// and then throwing away the results...
+				u, err := s3.Store(ctx, inputs)
+				if err != nil {
+					logf("could not write s3 file: %+v", err)
+				} else {
+					fmt.Printf("S3 Sig URL: %s\n", u)
+					fmt.Printf("S3 Pub URL: %s\n", s3.PubURL(region, outputS3Bucket, objectName))
+				}
+			}
+
+			if outputPath == "-" {
+				// NOTE: if we get asked for stdout, we
+				// turn off other output to make it sane
+				// TODO: should logs go to stderr instead?
+				quiet = true           // redundant for now
+				_, err := fmt.Print(s) // to stdout
+				return err
+
+			} else if outputPath != "" {
 				// TODO: is this the umask we should use?
 				if err := os.WriteFile(outputPath, []byte(s), interfaces.Umask); err != nil {
 					logf("could not write output file: %+v", err)
@@ -160,30 +270,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 
 			return nil
 		},
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "no-backend-licenseclassifier"},
-			&cli.BoolFlag{Name: "no-backend-cran"},
-			&cli.BoolFlag{Name: "no-backend-pom"},
-			&cli.BoolFlag{Name: "no-backend-spdx"},
-			&cli.BoolFlag{Name: "no-backend-askalono"},
-			&cli.BoolFlag{Name: "no-backend-scancode"},
-			&cli.BoolFlag{Name: "no-backend-bitbake"},
-			&cli.BoolFlag{Name: "no-backend-regexp"},
-			&cli.StringFlag{Name: "regexp-path"},
-			//&cli.BoolFlag{Name: "no-backend-example"},
-			&cli.BoolFlag{Name: "yes-backend-licenseclassifier"},
-			&cli.BoolFlag{Name: "yes-backend-cran"},
-			&cli.BoolFlag{Name: "yes-backend-pom"},
-			&cli.BoolFlag{Name: "yes-backend-spdx"},
-			&cli.BoolFlag{Name: "yes-backend-askalono"},
-			&cli.BoolFlag{Name: "yes-backend-scancode"},
-			&cli.BoolFlag{Name: "yes-backend-bitbake"},
-			&cli.BoolFlag{Name: "yes-backend-regexp"},
-			&cli.StringSliceFlag{Name: "profile"},
-			&cli.StringFlag{Name: "output-path"},
-			&cli.StringFlag{Name: "output-type"},
-			&cli.BoolFlag{Name: "quiet"},
-		},
+		Flags:                flags,
 		EnableBashCompletion: true,
 
 		Commands: []*cli.Command{

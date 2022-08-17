@@ -334,8 +334,33 @@ will also cause the quiet flag to be enabled.
 
 #### --output-type
 
-When run with `--output-type html` the scan results will be output in html. This
-requires that you also specify `--output-path`.
+When run with `--output-type html` the scan results will be output in html. When
+run with `--output-type text` the scan results will be in plain text. This
+requires that you also specify `--output-path` or `--output-s3bucket`. If you
+don't specify this, it will default to `html`.
+
+#### --output-s3bucket
+
+If you specify this flag with the name of an AWS S3 bucket, then the report will
+be uploaded to this location. You must have previously created an AWS account
+and have installed the credentials triple to the machine where you are running
+this tool. It is recommended that you use a dedicated (not shared) S3 bucket
+with this tool, as it will control the internal namespace and could potentially
+overwrite a file that you have already stored there. After the file is written,
+it will return a presigned URL that you can share with others. It will also
+return a public URL that you can share as well. This URL will only work if you
+have public access settings configured for your bucket. To configure those, you
+can refer to the below settings. The public object URL's that are generated are
+pseudo-hard to guess, but not impossible. The advantage they have over the
+presigned URL's is that they don't expire, where as the presigned URL's expire
+after seven days. This is an Amazon imposed limit.
+
+<details>
+<summary>Public access settings you may or may not want to set.</summary>
+	<a href="s3/screenshot-s3-public-bucket.png"><img src="s3/screenshot-s3-public-bucket.png" /></a>
+	For more info please refer to the
+	[AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/configuring-block-public-access-account.html).
+</details>
 
 #### --profile
 

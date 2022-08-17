@@ -53,9 +53,9 @@ import (
 )
 
 const (
-	// YesiscanCookieNameFlags is the name of the cookie used to store flags
-	// settings.
-	YesiscanCookieNameFlags = "yesiscan_flags"
+	// YesiscanCookieNameBackends is the name of the cookie used to store
+	// backend settings.
+	YesiscanCookieNameBackends = "yesiscan_backends"
 
 	// YesiscanCookieNameProfiles is the name of the cookie used to store
 	// profiles settings.
@@ -126,7 +126,7 @@ input[type=image] {
 	color: white;
 }
 
-#flags {
+#backends {
 	border-collapse: collapse;
 	width: 80%;
 	margin-left: auto;
@@ -142,7 +142,7 @@ input[type=image] {
 	font-size: 8px;
 }
 
-#flagstable,#profilestable {
+#backendstable,#profilestable {
 	width: 80%;
 	margin-left: auto;
 	margin-right: auto;
@@ -270,18 +270,16 @@ option:checked {
 	-->
 </div>
 
-{{ $fkeys := sortedmapkeys .flags }}
-{{ $flags := .flags }}
+{{ $fkeys := sortedmapkeys .backends }}
+{{ $backends := .backends }}
 
-<table id="flagstable"><tr><td style="width: 0px;">backends:</td><td>
-<table id="flags"><tr>
+<table id="backendstable"><tr><td style="width: 0px;">backends:</td><td>
+<table id="backends"><tr>
 {{ $n := len $fkeys }}
 {{ range $i, $v := $fkeys }}
-	{{ if hasprefix . "yes-backend-" }}
-		<td><input type="checkbox" id="{{ . }}" name="{{ . }}" value="true"{{ if ischecked $flags . }} checked{{ end }}/></td>
-		<td><label for="{{ . }}">{{ trimprefix . "yes-backend-" }}</label></td>
-		<!-- separator {{ if ne (plus1 $i) $n }}<td>|</td>{{ end }}-->
-	{{ end }}
+	<td><input type="checkbox" id="{{ . }}" name="{{ . }}" value="true"{{ if ischecked $backends . }} checked{{ end }}/></td>
+	<td><label for="{{ . }}">{{ . }}</label></td>
+	<!-- separator {{ if ne (plus1 $i) $n }}<td>|</td>{{ end }}-->
 {{ end }}
 </tr></table>
 </table>
@@ -385,11 +383,8 @@ var funcMap = map[string]interface{}{
 	"hasprefix": func(s, prefix string) (bool, error) {
 		return strings.HasPrefix(s, prefix), nil
 	},
-	"trimprefix": func(s, prefix string) (string, error) {
-		return strings.TrimPrefix(s, prefix), nil
-	},
-	"ischecked": func(flags map[string]bool, key string) (bool, error) {
-		val, ok := flags[key]
+	"ischecked": func(m map[string]bool, key string) (bool, error) {
+		val, ok := m[key]
 		if !ok {
 			return false, nil
 		}
@@ -478,30 +473,29 @@ func (obj *Server) Run(ctx context.Context) error {
 	}
 	obj.Logf("report prefix: %s", obj.reportPrefix)
 
-	//readTimeout := 60*60
-	//writeTimeout := 60*60
 	//conn, err := net.Listen("tcp", serverAddr)
 	//if err != nil {
 	//	return err
 	//}
 	//defer conn.Close()
-	//serveMux := http.NewServeMux()
-	//server := &http.Server{
-	//	Addr: serverAddr,
-	//	Handler: serveMux,
-	//	ReadTimeout: time.Duration(readTimeout) * time.Second,
-	//	WriteTimeout: time.Duration(writeTimeout) * time.Second,
-	//}
 	//if err := server.Serve(conn); err != nil {
 	//	return err
 	//}
 	router := obj.Router()
 	obj.ginEngine = router
 
-	obj.Logf("server: startup...")
+	if strings.HasPrefix(serverAddr, ":") {
+		obj.Logf("server: startup on http://localhost%s/", serverAddr)
+	} else {
+		obj.Logf("server: startup on http://%s/", serverAddr)
+	}
 
 	//router.Run(serverAddr)
+	//readTimeout := 60*60
+	//writeTimeout := 60*60
 	server := &http.Server{
+		//ReadTimeout: time.Duration(readTimeout) * time.Second,
+		//WriteTimeout: time.Duration(writeTimeout) * time.Second,
 		Addr:    serverAddr,
 		Handler: router,
 	}
@@ -560,7 +554,7 @@ func (obj *Server) Router() *gin.Engine {
 			"image":       base64Yesiscan,
 			"base64Files": base64Files,
 			"status":      "success",
-			"flags":       obj.getCookieFlags(c),
+			"backends":    obj.getCookieBackends(c),
 			"profiles":    obj.getCookieProfiles(c),
 			"fancy":       fancyRendering,
 			"uuid":        "",
@@ -588,22 +582,23 @@ func (obj *Server) Router() *gin.Engine {
 
 		args := []string{uri}
 
-		flags := make(map[string]bool)
+		backends := make(map[string]bool)
 		values := url.Values{}
-		for _, f := range lib.FlagNames {
-			flags[f] = false // default so it shows up physically
-			val, exists := c.GetPostForm(f)
+		for _, b := range lib.Backends {
+			backends[b] = false // default so it shows up physically
+			val, exists := c.GetPostForm(b)
 			if !exists {
 				continue
 			}
 			if val == "true" || val == "TRUE" { // TODO add others?
-				flags[f] = true
-				values.Set(f, "true")
+				backends[b] = true
+				values.Set(b, "true")
 			}
 		}
+
 		// XXX: if no backends are chosen, warn user that all will run!
 
-		// TODO: save list of flags to cookies only if "save settings" flag is set
+		// TODO: save list of backends to cookies only if "save settings" flag is set
 
 		// only allow user to choose profile from available list
 		pvalues := url.Values{}
@@ -623,7 +618,7 @@ func (obj *Server) Router() *gin.Engine {
 		// SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool)
 		//c.SetCookie("gin_cookie", values.Encode(), maxAge, "/", "localhost", false, true)
 		http.SetCookie(c.Writer, &http.Cookie{
-			Name:   YesiscanCookieNameFlags,
+			Name:   YesiscanCookieNameBackends,
 			Value:  url.QueryEscape(values.Encode()),
 			MaxAge: maxAge,
 			Path:   "/",
@@ -651,8 +646,8 @@ func (obj *Server) Router() *gin.Engine {
 			Debug:   obj.Debug,
 			Logf:    obj.Logf,
 
-			Args:  args,
-			Flags: flags,
+			Args:     args,
+			Backends: backends,
 
 			Profiles: profiles,
 
@@ -672,7 +667,7 @@ func (obj *Server) Router() *gin.Engine {
 			Program:  obj.Program,
 			Version:  obj.Version,
 			Uri:      uri,
-			Flags:    flags,
+			Backends: backends,
 			Profiles: profilesMap,
 			// XXX: consider storing full datastructure of profiles
 			Html: s,
@@ -708,7 +703,7 @@ func (obj *Server) Router() *gin.Engine {
 				"status":      "success",
 				"body":        template.HTML(e), // avoid escaping the html!
 				"uri":         c.PostForm("uri"),
-				"flags":       obj.getCookieFlags(c),
+				"backends":    obj.getCookieBackends(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
 				"uuid":        "",
@@ -738,7 +733,7 @@ func (obj *Server) Router() *gin.Engine {
 				"status":      "success",
 				"body":        template.HTML(e), // avoid escaping the html!
 				"uri":         c.PostForm("uri"),
-				"flags":       obj.getCookieFlags(c),
+				"backends":    obj.getCookieBackends(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
 				"uuid":        "",
@@ -766,7 +761,7 @@ func (obj *Server) Router() *gin.Engine {
 				"status":      "success",
 				"body":        template.HTML(e), // avoid escaping the html!
 				"uri":         c.PostForm("uri"),
-				"flags":       obj.getCookieFlags(c),
+				"backends":    obj.getCookieBackends(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
 				"uuid":        "",
@@ -782,7 +777,7 @@ func (obj *Server) Router() *gin.Engine {
 			"status":      "success",
 			"body":        template.HTML(report.Html), // avoid escaping the html!
 			"uri":         report.Uri,
-			"flags":       report.Flags,
+			"backends":    report.Backends,
 			"profiles":    report.Profiles,
 			"fancy":       fancyRendering,
 			"uuid":        r,
@@ -808,7 +803,7 @@ func (obj *Server) Router() *gin.Engine {
 				"status":      "success",
 				"body":        template.HTML(e), // avoid escaping the html!
 				"uri":         c.PostForm("uri"),
-				"flags":       obj.getCookieFlags(c),
+				"backends":    obj.getCookieBackends(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
 				"uuid":        "",
@@ -836,7 +831,7 @@ func (obj *Server) Router() *gin.Engine {
 				"status":      "success",
 				"body":        template.HTML(e), // avoid escaping the html!
 				"uri":         c.PostForm("uri"),
-				"flags":       obj.getCookieFlags(c),
+				"backends":    obj.getCookieBackends(c),
 				"profiles":    obj.getCookieProfiles(c),
 				"fancy":       fancyRendering,
 				"uuid":        r,
@@ -853,7 +848,7 @@ func (obj *Server) Router() *gin.Engine {
 			"status":      "success",
 			"body":        template.HTML(report.Html), // avoid escaping the html!
 			"uri":         report.Uri,
-			"flags":       report.Flags,
+			"backends":    report.Backends,
 			"profiles":    report.Profiles,
 			"fancy":       fancyRendering,
 			"uuid":        r,
@@ -947,25 +942,25 @@ func (obj *Server) Load(uid string) (*Report, error) {
 	return &report, nil
 }
 
-func (obj *Server) getCookieFlags(c *gin.Context) map[string]bool {
-	// build the default set of flags to display on a new page
-	flags := make(map[string]bool)
-	for _, x := range lib.FlagNames {
-		flags[x] = true // default all to true
+func (obj *Server) getCookieBackends(c *gin.Context) map[string]bool {
+	// build the default set of backends to display on a new page
+	backends := make(map[string]bool)
+	for _, x := range lib.Backends {
+		backends[x] = true // default all to true
 	}
 
 	// load list from cookies
-	if cookie, err := c.Cookie(YesiscanCookieNameFlags); err == nil {
+	if cookie, err := c.Cookie(YesiscanCookieNameBackends); err == nil {
 		m, err := url.ParseQuery(cookie) // map[string][]string
 		if err == nil && cookie != "" {
-			for _, x := range lib.FlagNames {
-				flags[x] = false // default all to true
+			for _, x := range lib.Backends {
+				backends[x] = false // default all to false
 			}
 			for name := range m {
-				if _, exists := flags[name]; exists {
+				if _, exists := backends[name]; exists {
 					for _, x := range m[name] {
 						if x == "true" {
-							flags[name] = true
+							backends[name] = true
 						}
 					}
 				}
@@ -973,7 +968,7 @@ func (obj *Server) getCookieFlags(c *gin.Context) map[string]bool {
 		}
 	}
 
-	return flags
+	return backends
 }
 
 func (obj *Server) getCookieProfiles(c *gin.Context) map[string]bool {
@@ -1012,8 +1007,8 @@ type Report struct {
 	// Uri is the input URI used for the scan.
 	Uri string `json:"uri"`
 
-	// Flags are a map of specified options that users may specify.
-	Flags map[string]bool `json:"flags"`
+	// Backends are a map of specified backens that users may enable.
+	Backends map[string]bool `json:"backends"`
 
 	// Profiles are a set of specified profile names that users may specify.
 	Profiles map[string]bool `json:"profiles"`
@@ -1064,11 +1059,6 @@ func ReturnOutputHtml(output *lib.Output) (string, error) {
 		profiles[x] = true
 	}
 
-	flags := make(map[string]bool)
-	for _, x := range output.Flags {
-		flags[x] = true
-	}
-
 	args := fmt.Sprintf("%+v", output.Args)
 	if len(output.Args) == 1 {
 		args = output.Args[0]
@@ -1082,7 +1072,7 @@ func ReturnOutputHtml(output *lib.Output) (string, error) {
 		"status":      "success",
 		"body":        template.HTML(body), // avoid escaping the html!
 		"uri":         args,                // XXX: display this differently?
-		"flags":       flags,
+		"backends":    output.Backends,
 		"profiles":    profiles,
 		"fancy":       fancyRendering,
 		"uuid":        "",

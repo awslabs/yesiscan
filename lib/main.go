@@ -39,24 +39,17 @@ import (
 	"github.com/awslabs/yesiscan/util/safepath"
 )
 
-// FlagsNames is a list of all the backend flags used.
-var FlagNames = []string{
-	"no-backend-licenseclassifier",
-	"no-backend-cran",
-	"no-backend-pom",
-	"no-backend-spdx",
-	"no-backend-askalono",
-	"no-backend-scancode",
-	"no-backend-bitbake",
-	"no-backend-regexp",
-	"yes-backend-licenseclassifier",
-	"yes-backend-cran",
-	"yes-backend-pom",
-	"yes-backend-spdx",
-	"yes-backend-askalono",
-	"yes-backend-scancode",
-	"yes-backend-bitbake",
-	"yes-backend-regexp",
+// Backends are a list of the available backends. We will eventually replace
+// this with a registration mechanism.
+var Backends = []string{
+	"licenseclassifier",
+	"cran",
+	"pom",
+	"spdx",
+	"askalono",
+	"scancode",
+	"bitbake",
+	"regexp",
 }
 
 // Main is the general entry point for running this software. Populate this
@@ -70,8 +63,9 @@ type Main struct {
 	// This is the argv of the function.
 	Args []string
 
-	// Flags are a list of bool flags we use.
-	Flags map[string]bool
+	// Backends gives us a list of backends we use. If the corresponding
+	// bool value in the map is true, then the backend is enabled.
+	Backends map[string]bool
 
 	// Profiles is the list of profiles to use. Either the names from
 	// ~/.config/yesiscan/profiles/<name>.json or full paths.
@@ -84,11 +78,6 @@ type Main struct {
 // Run is the main method for the Main struct. We use a struct as a way to pass
 // in a ton of different arguments in a cleaner way.
 func (obj *Main) Run(ctx context.Context) (*Output, error) {
-	Bool := func(k string) bool { // like the c.Bool function of cli context
-		val, _ := obj.Flags[k]
-		return val // if absent, we want false anyways
-	}
-
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
 		return nil, err
@@ -111,7 +100,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		obj.Logf("error finding home directory: %+v", err)
 	}
 
-	// TODO: add more --flags to specify which parser/backends to use...
+	// TODO: add more --flags to specify which parser/iterators to use...
 
 	inputStrings := []string{}
 
@@ -155,31 +144,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 	backends := []interfaces.Backend{}
 	backendWeights := make(map[interfaces.Backend]float64)
 
-	// is there at least one yes-?
-	isAdditive := false ||
-		Bool("yes-backend-licenseclassifier") ||
-		Bool("yes-backend-cran") ||
-		Bool("yes-backend-pom") ||
-		Bool("yes-backend-spdx") ||
-		Bool("yes-backend-askalono") ||
-		Bool("yes-backend-scancode") ||
-		Bool("yes-backend-bitbake") ||
-		Bool("yes-backend-regexp") ||
-		false
-
-	cliFlag := func(f string) bool {
-		if isAdditive && Bool(fmt.Sprintf("yes-backend-%s", f)) {
-			return true
-		}
-
-		if !isAdditive && !Bool(fmt.Sprintf("no-backend-%s", f)) {
-			return true
-		}
-
-		return false
-	}
-
-	if cliFlag("licenseclassifier") {
+	if enabled, _ := obj.Backends["licenseclassifier"]; enabled {
 		licenseClassifierBackend := &backend.LicenseClassifier{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -195,7 +160,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[licenseClassifierBackend] = 1.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("cran") {
+	if enabled, _ := obj.Backends["cran"]; enabled {
 		cranBackend := &backend.Cran{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -206,7 +171,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[cranBackend] = 2.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("pom") {
+	if enabled, _ := obj.Backends["pom"]; enabled {
 		pomBackend := &backend.Pom{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -217,7 +182,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[pomBackend] = 2.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("spdx") {
+	if enabled, _ := obj.Backends["spdx"]; enabled {
 		spdxBackend := &backend.Spdx{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -228,7 +193,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[spdxBackend] = 2.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("askalono") {
+	if enabled, _ := obj.Backends["askalono"]; enabled {
 		askalonoBackend := &backend.Askalono{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -242,7 +207,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[askalonoBackend] = 4.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("scancode") {
+	if enabled, _ := obj.Backends["scancode"]; enabled {
 		scancodeBackend := &backend.Scancode{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -256,7 +221,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[scancodeBackend] = 8.0 // TODO: adjust as needed
 	}
 
-	if cliFlag("bitbake") {
+	if enabled, _ := obj.Backends["bitbake"]; enabled {
 		bitbakeBackend := &backend.Bitbake{
 			Debug: obj.Debug,
 			Logf: func(format string, v ...interface{}) {
@@ -268,7 +233,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 	}
 
 	regexpPath := ""
-	if cliFlag("regexp") {
+	if enabled, _ := obj.Backends["regexp"]; enabled {
 		if obj.RegexpPath != "" {
 			regexpPath = obj.RegexpPath
 		} else {
@@ -294,7 +259,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		backendWeights[regexpBackend] = 8.0 // TODO: adjust as needed
 	}
 
-	//if cliFlag("example") {
+	//if enabled, _ := obj.Backends["example"]; enabled {
 	//	exampleBackend := &backend.ExampleClassifier{
 	//		Debug: obj.Debug,
 	//		Logf: func(format string, v ...interface{}) {
@@ -387,18 +352,11 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		profiles = append(profiles, DefaultProfileName)
 	}
 
-	flags := []string{}
-	for _, x := range FlagNames {
-		if Bool(x) {
-			flags = append(flags, x)
-		}
-	}
-
 	return &Output{
 		Program:        obj.Program,
 		Version:        obj.Version,
 		Args:           inputStrings,
-		Flags:          flags,
+		Backends:       obj.Backends,
 		Results:        results,
 		Profiles:       profiles,
 		ProfilesData:   profilesData,
@@ -412,7 +370,7 @@ type Output struct {
 	Version string
 
 	Args           []string
-	Flags          []string
+	Backends       map[string]bool
 	Results        map[string]map[interfaces.Backend]*interfaces.Result
 	Profiles       []string
 	ProfilesData   map[string]*ProfileData

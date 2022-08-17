@@ -3,6 +3,9 @@ module github.com/awslabs/yesiscan
 go 1.16
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.16.11 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.17.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.5 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/gin-contrib/multitemplate v0.0.0-20220705015713-e21a0ba39de3 // indirect
 	github.com/gin-gonic/gin v1.8.1 // indirect

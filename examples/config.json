@@ -1,0 +1,18 @@
+{
+	"quiet": false,
+	"profiles": ["big5", "default", "fsf"],
+	"regexp-path": "",
+	"output-type": "html",
+	"output-s3bucket": "yesiscan-test",
+	"region": "ca-central-1",
+	"backends": {
+		"licenseclassifier": false,
+		"cran": true,
+		"pom": true,
+		"spdx": true,
+		"askalono": true,
+		"scancode": true,
+		"bitbake": true,
+		"regexp": true
+	}
+}

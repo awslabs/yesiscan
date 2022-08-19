@@ -313,6 +313,30 @@ yesiscan web
 xdg-open http://localhost:8000/
 ```
 
+### Config
+
+You can store your default configuration options in a
+`~/.config/yesiscan/config.json` file. This location can be overridden by the
+`--config-path` argument. If this file exists, then these values will be used as
+defaults. The below flags can override any of these. The following keys are
+supported: `quiet`, `regexp-path`, `output-type`, `output-path`,
+`output-s3bucket`, `region`, `profiles`, and `backends`. These keys should all
+be the top-level keys in a single json dictionary. More information on some of
+these keys are described below.
+
+#### "profiles"
+
+This key should be a list of "profiles" to use. See the **Profiles** section
+below for more information.
+
+#### "backends"
+
+These keys should be a dictionary of backend names to boolean `true` or `false`
+values representing the enabled state of that backend. If you don't specify a
+backend here, then whether or not that backend will be enabled or not is
+undefined and will depend on which backend flags you use. As a result, it is
+always recommended to be explicit about which backends you want to enable.
+
 ### Flags
 
 You can add flags to tell it which backends to include or remove. They're all
@@ -325,12 +349,14 @@ the full list of these flags with the `--help` flag.
 
 When this boolean flag is enabled, all log messages will be suppressed.
 
-#### --output-path
+#### --regexp-path
+This is the path to the regexp rules files as used by the regexp backend. If it
+is not specified, then we will automatically look for a file in
+`~/.config/yesiscan/regexp.json`.
 
-When run with `--output-path <path>` the scan results will be saved to a file.
-This will overwrite whatever file contents are already there, so please use
-carefully. If you specify `-` as the file path, the stdout will be used. This
-will also cause the quiet flag to be enabled.
+#### --config-path
+This is the path to the main `config.json` file. If it is not specified, then we
+will automatically look for a file in `~/.config/yesiscan/config.json`.
 
 #### --output-type
 
@@ -338,6 +364,13 @@ When run with `--output-type html` the scan results will be output in html. When
 run with `--output-type text` the scan results will be in plain text. This
 requires that you also specify `--output-path` or `--output-s3bucket`. If you
 don't specify this, it will default to `html`.
+
+#### --output-path
+
+When run with `--output-path <path>` the scan results will be saved to a file.
+This will overwrite whatever file contents are already there, so please use
+carefully. If you specify `-` as the file path, the stdout will be used. This
+will also cause the quiet flag to be enabled.
 
 #### --output-s3bucket
 
@@ -361,6 +394,9 @@ after seven days. This is an Amazon imposed limit.
 	For more info please refer to the
 	[AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/configuring-block-public-access-account.html).
 </details>
+
+#### --region
+This is the S3 region that is used for uploading files to S3 buckets.
 
 #### --profile
 

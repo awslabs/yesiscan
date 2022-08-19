@@ -22,10 +22,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha512"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -33,6 +35,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -56,16 +59,24 @@ var program string
 //go:embed .version
 var version string
 
+const (
+	// ConfigFileName is the name of the config file used to pull in all the
+	// various main settings that we want.
+	ConfigFileName = "config.json"
+)
+
 // CLI is the entry point for the CLI frontend.
 func CLI(program, version string, debug bool, logf func(format string, v ...interface{})) error {
 
 	flags := []cli.Flag{
-		&cli.StringFlag{Name: "regexp-path"},
-		&cli.StringSliceFlag{Name: "profile"},
-		&cli.StringFlag{Name: "output-s3bucket"},
-		&cli.StringFlag{Name: "output-path"},
-		&cli.StringFlag{Name: "output-type"},
 		&cli.BoolFlag{Name: "quiet"},
+		&cli.StringFlag{Name: "regexp-path"},
+		&cli.StringFlag{Name: "config-path"},
+		&cli.StringFlag{Name: "output-type"},
+		&cli.StringFlag{Name: "output-path"},
+		&cli.StringFlag{Name: "output-s3bucket"},
+		&cli.StringFlag{Name: "region"},
+		&cli.StringSliceFlag{Name: "profile"},
 	}
 	// build the yes and no backend flags
 	for _, b := range lib.Backends {
@@ -86,12 +97,84 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 			defer stop()
-			quiet := c.Bool("quiet")
-			outputPath := c.String("output-path")
-			region := s3.DefaultRegion                    // XXX: get from config
-			outputS3Bucket := c.String("output-s3bucket") // XXX: get from config
-			bigIntStr := ""                               // for our int
-			if outputPath == "-" || quiet {               // if output is stdout, noop logs
+
+			bigIntStr := "" // for our int
+			var quiet bool
+			var regexpPath string
+			// config-path makes no sense here
+			var outputType string
+			var outputPath string
+			var outputS3Bucket string
+			region := s3.DefaultRegion
+			profiles := []string{}
+			backends := make(map[string]bool)
+
+			// load from main config file or xdg if config is empty
+			config, err := GetConfig(c.String("config-path"))
+			if err != nil {
+				return err
+			}
+			if config != nil {
+				if config.Quiet != nil {
+					quiet = *config.Quiet
+				}
+				if config.RegexpPath != nil {
+					regexpPath = *config.RegexpPath
+				}
+				// config-path makes no sense here
+				if config.OutputType != nil {
+					outputType = *config.OutputType
+				}
+				if config.OutputPath != nil {
+					outputPath = *config.OutputPath
+				}
+				if config.OutputS3Bucket != nil {
+					outputS3Bucket = *config.OutputS3Bucket
+				}
+				if config.Region != nil {
+					region = *config.Region
+				}
+				if config.Profiles != nil {
+					profiles = []string{} // erase any previous
+					for _, x := range *config.Profiles {
+						profiles = append(profiles, x)
+					}
+				}
+				if config.Backends != nil {
+					for k, v := range config.Backends {
+						backends[k] = v // copy
+					}
+				}
+			}
+
+			// Command line options override anything in the config.
+			if c.IsSet("quiet") {
+				quiet = c.Bool("quiet")
+			}
+			if c.IsSet("regexp-path") {
+				regexpPath = c.String("regexp-path")
+			}
+			// config-path makes no sense here
+			if c.IsSet("output-type") {
+				outputType = c.String("output-type")
+			}
+			if c.IsSet("output-path") {
+				outputPath = c.String("output-path")
+			}
+			if c.IsSet("output-s3bucket") {
+				outputS3Bucket = c.String("output-s3bucket")
+			}
+			if c.IsSet("region") {
+				region = c.String("region")
+			}
+			if c.IsSet("profile") {
+				profiles = []string{} // erase any previous
+				for _, x := range c.StringSlice("profile") {
+					profiles = append(profiles, x)
+				}
+			}
+
+			if outputPath == "-" || quiet { // if output is stdout, noop logs
 				logf = func(format string, v ...interface{}) {
 					// noop
 				}
@@ -124,9 +207,19 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				return false
 			}
 
-			backends := make(map[string]bool)
 			for _, b := range lib.Backends {
-				backends[b] = isBackendEnabled(b)
+				// if undefined, then look at the flags...
+				if _, exists := backends[b]; !exists {
+					backends[b] = isBackendEnabled(b)
+					continue
+				}
+				// if the yes or no flag was set, then use that
+				if c.Bool(fmt.Sprintf("no-backend-%s", b)) {
+					backends[b] = false
+				}
+				if c.Bool(fmt.Sprintf("yes-backend-%s", b)) {
+					backends[b] = true
+				}
 			}
 
 			if outputS3Bucket != "" { // do a test-for-auth run
@@ -170,9 +263,9 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				Args:     args,
 				Backends: backends,
 
-				Profiles: c.StringSlice("profile"),
+				Profiles: profiles,
 
-				RegexpPath: c.String("regexp-path"),
+				RegexpPath: regexpPath,
 			}
 
 			output, err := m.Run(ctx)
@@ -185,7 +278,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				var err error
 				// TODO: when we render an html version, should
 				// it look the same as the web `save` output?
-				if c.String("output-type") == "text" {
+				if outputType == "text" {
 					if s, err = lib.ReturnOutputFile(output); err != nil {
 						return err
 					}
@@ -199,7 +292,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 			if outputS3Bucket != "" {
 				ext := "html"
 				contentType := "text/html"
-				if c.String("output-type") == "text" {
+				if outputType == "text" {
 					ext = "txt"
 					contentType = "text/plain"
 				}
@@ -292,6 +385,87 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 	}
 
 	return app.Run(os.Args)
+}
+
+// Config is a list of settings stored in the users ~/.config/ directory.
+// TODO: should this get moved into the lib package?
+type Config struct {
+	// Quiet will prevent the tool from talking too much on the console.
+	// This is implied if you use the stdout option of --output-path.
+	Quiet *bool `json:"quiet"`
+
+	// RegexpPath specifies a path the regular expressions to use.
+	RegexpPath *string `json:"regexp-path"`
+	// config-path makes no sense here
+
+	// OutputType is the format the report will be sent as. Options include
+	// "html" and "text".
+	OutputType *string `json:"output-type"`
+
+	// OutputPath is the location where the report will be saved. This will
+	// overwrite any existing file at this location. Use with caution. If
+	// you specify the - character (dash) then it will print to stdout.
+	OutputPath *string `json:"output-path"`
+
+	// OutputS3Bucket prints the report to an S3 bucket with this name. Make
+	// sure you don't have anything important in the bucket as it might
+	// overwrite any file in there as the report name is chosen
+	// automatically.
+	OutputS3Bucket *string `json:"output-s3bucket"`
+
+	// Region specifies the S3 region to use when writing to the S3 bucket.
+	Region *string `json:"region"`
+
+	// Profiles is the list of profiles to use. Either the names from
+	// ~/.config/yesiscan/profiles/<name>.json or full paths.
+	Profiles *[]string `json:"profiles"`
+
+	// Backends gives us a list of backends we use. If the corresponding
+	// bool value in the map is true, then the backend is enabled. If it is
+	// false that it is not enabled. If it not listed then its behaviour is
+	// undefined.
+	Backends map[string]bool `json:"backends"`
+}
+
+// GetConfig loads the config file data into a struct.
+func GetConfig(configPath string) (*Config, error) {
+	// If config path is set, we look in there for a config, otherwise we
+	// use the default xdg path.
+	if configPath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, errwrap.Wrapf(err, "error finding home directory")
+		}
+		if home == "" {
+			return nil, fmt.Errorf("home directory is empty")
+		}
+
+		// TODO: get program from an input var perhaps?
+		configPath = filepath.Join(home, ".config/", program+"/", ConfigFileName)
+		configPath = filepath.Clean(configPath)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if os.IsNotExist(err) && configPath == "" {
+		return nil, nil // no config, no error
+	}
+	if err != nil {
+		return nil, errwrap.Wrapf(err, "error reading config file")
+	}
+
+	buffer := bytes.NewBuffer(data)
+	if buffer.Len() == 0 {
+		return nil, fmt.Errorf("empty config file: %s", configPath)
+	}
+	decoder := json.NewDecoder(buffer)
+
+	var configData Config // this gets populated during decode
+	if err := decoder.Decode(&configData); err != nil {
+		// TODO: should this be an error, or just a silent ignore?
+		return nil, errwrap.Wrapf(err, "error decoding json output of: %s", configPath)
+	}
+
+	return &configData, nil
 }
 
 func main() {

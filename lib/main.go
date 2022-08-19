@@ -64,7 +64,9 @@ type Main struct {
 	Args []string
 
 	// Backends gives us a list of backends we use. If the corresponding
-	// bool value in the map is true, then the backend is enabled.
+	// bool value in the map is true, then the backend is enabled. It can be
+	// false if we want to show that it exists but is not enabled. This is
+	// useful for display purposes.
 	Backends map[string]bool
 
 	// Profiles is the list of profiles to use. Either the names from

@@ -1,2 +1,4 @@
 old/
 tmp/
+.autoConfigURI
+.autoConfigCookiePath

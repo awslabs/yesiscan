@@ -319,10 +319,10 @@ You can store your default configuration options in a
 `~/.config/yesiscan/config.json` file. This location can be overridden by the
 `--config-path` argument. If this file exists, then these values will be used as
 defaults. The below flags can override any of these. The following keys are
-supported: `quiet`, `regexp-path`, `output-type`, `output-path`,
-`output-s3bucket`, `region`, `profiles`, and `backends`. These keys should all
-be the top-level keys in a single json dictionary. More information on some of
-these keys are described below.
+supported: `auto-config-uri`, `auto-config-cookie-path`, `quiet`, `regexp-path`,
+`output-type`, `output-path`, `output-s3bucket`, `region`, `profiles`, and
+`backends`. These keys should all be the top-level keys in a single json
+dictionary. More information on some of these keys are described below.
 
 #### "profiles"
 
@@ -344,6 +344,24 @@ included by default unless you choose which one to exclude with the
 `--no-backend` variants. However if you use any of the `--yes-backend` variants,
 then you have to specify each backend that you want individually. You can get
 the full list of these flags with the `--help` flag.
+
+#### --auto-config-uri
+This is a special URI which if set, will try and pull a config from that
+location on startup. It will use the cookie file stored at
+`--auto-config-cookie-path` if specified. If successful, it will check if the
+config is different from what is currently stored. If so then it will validate
+if it is a valid json config. If so it will replace (overwrite!) the current
+config and then run with that!
+
+For example: `--auto-config-uri 'https://example.com/config.json'`.
+
+#### --auto-config-cookie-path
+This is a special URI which if set will point to a netscape/libcurl style cookie
+file to use when making the get download requests. This is useful if you store
+your config behind some gateway that needs a magic cookie for auth. It accepts
+the tilde (`~`) character to use for `$HOME` directory path expansion.
+
+For example:  `--auto-config-cookie-path '~/.secret/cookie'`.
 
 #### --quiet
 

@@ -371,6 +371,7 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 		// and then throwing away the results...
 		logf("s3: setup verification...")
 		if _, err := s3.Store(ctx, inputs); err != nil {
+			logf("s3: are your s3 credentials valid?")
 			return errwrap.Wrapf(err, "s3 setup error")
 		}
 	}

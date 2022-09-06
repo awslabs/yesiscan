@@ -1,5 +1,7 @@
 .PHONY: all build release
 
+# These values get pulled in from these magic dot files to make builds that
+# already contain these values. They set these config values automatically.
 AUTO := $(shell cat ../../.autoConfigURI 2>/dev/null || echo '')
 COOKIE := $(shell cat ../../.autoConfigCookiePath 2>/dev/null || echo '')
 

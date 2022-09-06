@@ -58,8 +58,8 @@ and perform individual tasks succinctly. For example, the git iterator knows how
 to download and store git repositories, and then return a new file system
 iterator at the location where it cloned the repository. The zip iterator knows
 how to decompress and unarchive zip files. The http iterator knows how to
-download a file over https. Future iterators will be able to decompress tar and
-gz archives, look inside rpm's, and so much more.
+download a file over https. Future iterators will be able to look inside rpm's,
+and so much more.
 
 #### fs
 
@@ -356,10 +356,12 @@ config and then run with that!
 For example: `--auto-config-uri 'https://example.com/config.json'`.
 
 #### --auto-config-cookie-path
-This is a special URI which if set will point to a netscape/libcurl style cookie
-file to use when making the get download requests. This is useful if you store
-your config behind some gateway that needs a magic cookie for auth. It accepts
-the tilde (`~`) character to use for `$HOME` directory path expansion.
+This is a special path which if set will point to a netscape/libcurl style
+cookie file to use when making the get download requests. This is useful if you
+store your config behind some gateway that needs a magic cookie for auth. It
+accepts the tilde (`~`) character to use for `$HOME` directory path expansion.
+We only read from this path, and expect another tool to have previously written
+the cookie file there.
 
 For example:  `--auto-config-cookie-path '~/.secret/cookie'`.
 

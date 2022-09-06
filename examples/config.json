@@ -14,5 +14,8 @@
 		"scancode": true,
 		"bitbake": true,
 		"regexp": true
+	},
+	"configs": {
+		"~/.config/yesiscan/profiles/big5.json": "https://raw.githubusercontent.com/awslabs/yesiscan/main/examples/big5.json"
 	}
 }

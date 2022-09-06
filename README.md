@@ -320,9 +320,10 @@ You can store your default configuration options in a
 `--config-path` argument. If this file exists, then these values will be used as
 defaults. The below flags can override any of these. The following keys are
 supported: `auto-config-uri`, `auto-config-cookie-path`, `quiet`, `regexp-path`,
-`output-type`, `output-path`, `output-s3bucket`, `region`, `profiles`, and
-`backends`. These keys should all be the top-level keys in a single json
-dictionary. More information on some of these keys are described below.
+`output-type`, `output-path`, `output-s3bucket`, `region`, `profiles`,
+`backends` and `configs`. These keys should all be the top-level keys in a
+single json dictionary. More information on some of these keys are described
+below.
 
 #### "profiles"
 
@@ -336,6 +337,18 @@ values representing the enabled state of that backend. If you don't specify a
 backend here, then whether or not that backend will be enabled or not is
 undefined and will depend on which backend flags you use. As a result, it is
 always recommended to be explicit about which backends you want to enable.
+
+#### "configs"
+
+These keys should be a dictionary of destination file names to source URI paths.
+This map of files will be downloaded to the destination paths from the source
+URI paths. The destination file paths accept the tilde (`~`) character to use
+for `$HOME` directory path expansion. The destination paths must all be rooted
+under the parent directory of the main config file. This prevents using this
+tool to write to `/etc/passwd` or `~/.ssh/id_rsa` for example. The source URI's
+will try and use the cookie path if it is specified. Overall this feature is
+helpful for pulling down multiple files for use in concert with a specific
+config that is likely brought in via the auto config mechanism.
 
 ### Flags
 

@@ -38,6 +38,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ import (
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/s3"
 	"github.com/awslabs/yesiscan/util/errwrap"
+	"github.com/awslabs/yesiscan/util/safepath"
 	"github.com/awslabs/yesiscan/web"
 
 	"github.com/mitchellh/go-homedir"
@@ -95,6 +97,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 		&cli.StringFlag{Name: "output-s3bucket"},
 		&cli.StringFlag{Name: "region"},
 		&cli.StringSliceFlag{Name: "profile"},
+		//&cli.StringSliceFlag{Name: "config"}, // TODO: map not list
 	}
 	// build the yes and no backend flags
 	for _, b := range lib.Backends {
@@ -153,6 +156,7 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 	var outputS3Bucket string
 	region := s3.DefaultRegion
 	profiles := []string{}
+	configs := make(map[string]string)
 	backends := make(map[string]bool)
 
 	// load from main config file or xdg if config is empty
@@ -194,6 +198,12 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 				profiles = append(profiles, x)
 			}
 		}
+		if config.Configs != nil {
+			configs = make(map[string]string) // erase any previous
+			for k, v := range *config.Configs {
+				configs[k] = v
+			}
+		}
 		if config.Backends != nil {
 			for k, v := range config.Backends {
 				backends[k] = v // copy
@@ -233,6 +243,12 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 			profiles = append(profiles, x)
 		}
 	}
+	//if c.IsSet("config") {
+	//	configs = make(map[string]string) // erase any previous
+	//	for k, x := range c.StringSlice("config") { // TODO: map not list
+	//		configs[k] = v
+	//	}
+	//}
 
 	// auto config URI magic...
 	if autoConfigURI != "" { // we must try to auto config
@@ -292,7 +308,98 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 		}
 	}
 
-	// XXX: pull from additional config file download paths and destinations
+	// more auto config URI magic...
+	recurse := false
+	configKeys := []string{}
+	for k := range configs {
+		configKeys = append(configKeys, k)
+	}
+	sort.Strings(configKeys) // deterministic
+
+	var absFile safepath.AbsFile
+	if len(configKeys) > 0 {
+		p, err := GetConfigPath(c.String("config-path"))
+		if err != nil {
+			return err
+		}
+		if absFile, err = safepath.ParseIntoAbsFile(p); err != nil {
+			return err
+		}
+	}
+
+	for _, k := range configKeys {
+		// check that k is inside of the directory that p is in
+		// this prevents us writing to /root or something unwanted
+
+		safeAbsDir := absFile.Dir() // dir that k needs to be within
+
+		h, err := homedir.Expand(k)
+		if err != nil {
+			return errwrap.Wrapf(err, "invalid path of: %s", k)
+		}
+		kAbsFile, err := safepath.ParseIntoAbsFile(h)
+		if err != nil {
+			return err
+		}
+		kSafeAbsDir := kAbsFile.Dir() // dir that k is in
+
+		// eg: safeAbsDir is ~/.config/yesiscan/
+		// eg: kSafeAbsDir is ~/.config/yesiscan/profiles/
+		if !safepath.HasPrefix(kSafeAbsDir, safeAbsDir) {
+			return fmt.Errorf("invalid config: can't download file to: %s", kSafeAbsDir)
+		}
+
+		v := configs[k] // key must exist
+
+		logf("getting additional config from: %s", v)
+		data, err := DownloadConfig(v)
+		if err != nil {
+			return errwrap.Wrapf(err, "autoConfigURI download failed on: %s", v)
+		}
+
+		b, err := os.ReadFile(h)
+		if os.IsNotExist(err) { // no config exists here...
+			b = []byte{} // (implied, but now cleanly initialized)
+			err = nil    // clear this
+		} else if err != nil {
+			return err
+		}
+
+		// TODO: is this good enough to verify a json format w/o schema?
+		isJson := func(d []byte) error {
+			var j json.RawMessage
+			return json.Unmarshal(d, &j)
+		}
+
+		// if equal, we don't need to change the config...
+		// check it's valid json before writing it? (for portal errors)
+		if err := isJson(data); !bytes.Equal(data, b) && err == nil {
+
+			// store new config file
+			logf("writing new additional config to: %s", h)
+			// XXX: set umask for u=rw,go=
+			if err := os.WriteFile(h, data, interfaces.Umask); err != nil {
+				return errwrap.Wrapf(err, "autoConfigURI store additional failed on: %s", k)
+			}
+
+			// recurse at the end...
+			recurse = true
+
+		} else if err != nil {
+			// provide logs so users know something is wrong...
+			logf("invalid additional config file at URI: %s", v)
+			logf("error with config file: %+v", err)
+			if autoConfigCookiePath == "" {
+				logf("do you need an auth cookie?")
+			} else {
+				logf("is your auth cookie (%s) valid?", autoConfigCookiePath)
+			}
+		}
+	}
+	if recurse {
+		logf("recursing on new additional config...")
+		return App(c, program, version, debug, logf)
+	}
 
 	if outputPath == "-" || quiet { // if output is stdout, noop logs
 		logf = func(format string, v ...interface{}) {
@@ -535,6 +642,11 @@ type Config struct {
 	// Profiles is the list of profiles to use. Either the names from
 	// ~/.config/yesiscan/profiles/<name>.json or full paths.
 	Profiles *[]string `json:"profiles"`
+
+	// Configs is the list of config additions to use. These files are
+	// downloaded from the URI's (map values) and put into the corresponding
+	// source (map keys).
+	Configs *map[string]string `json:"configs"`
 
 	// Backends gives us a list of backends we use. If the corresponding
 	// bool value in the map is true, then the backend is enabled. If it is

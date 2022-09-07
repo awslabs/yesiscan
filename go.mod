@@ -10,10 +10,12 @@ require (
 	github.com/gin-contrib/multitemplate v0.0.0-20220705015713-e21a0ba39de3 // indirect
 	github.com/gin-gonic/gin v1.8.1 // indirect
 	github.com/go-git/go-git/v5 v5.3.0 // indirect
+	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/google/licenseclassifier v0.0.0-20210325184830-bb04aff29e72 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ssgelm/cookiejarparser v1.0.1 // indirect
-	github.com/urfave/cli/v2 v2.3.0 // indirect
+	github.com/urfave/cli/v2 v2.14.1 // indirect
 )

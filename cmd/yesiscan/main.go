@@ -87,25 +87,63 @@ const (
 func CLI(program, version string, debug bool, logf func(format string, v ...interface{})) error {
 
 	flags := []cli.Flag{
-		&cli.StringFlag{Name: "auto-config-uri"},
-		&cli.StringFlag{Name: "auto-config-cookie-path"},
-		&cli.BoolFlag{Name: "quiet"},
-		&cli.StringFlag{Name: "regexp-path"},
-		&cli.StringFlag{Name: "config-path"},
-		&cli.StringFlag{Name: "output-type"},
-		&cli.StringFlag{Name: "output-path"},
-		&cli.StringFlag{Name: "output-s3bucket"},
-		&cli.StringFlag{Name: "region"},
-		&cli.StringSliceFlag{Name: "profile"},
+		&cli.StringFlag{
+			Name:  "auto-config-uri",
+			Usage: "override/specify an auto config URI",
+		},
+		&cli.StringFlag{
+			Name:  "auto-config-cookie-path",
+			Usage: "override/specify an auto config cookie path",
+		},
+		&cli.BoolFlag{
+			Name:  "quiet",
+			Usage: "remove most log messages",
+		},
+		&cli.StringFlag{
+			Name:  "regexp-path",
+			Usage: "path to regexp rules file",
+		},
+		&cli.StringFlag{
+			Name:  "config-path",
+			Usage: "path to the main config file",
+		},
+		&cli.StringFlag{
+			Name:  "output-type",
+			Usage: "output type for reports, one of `html` or `text`",
+		},
+		&cli.StringFlag{
+			Name:  "output-path",
+			Usage: "output path for reports (specify a dash for stdout)",
+		},
+		&cli.StringFlag{
+			Name:  "output-s3bucket",
+			Usage: "bucket name to upload to s3",
+		},
+		&cli.StringFlag{
+			Name:  "region",
+			Usage: "region to use for s3 api requests",
+		},
+		&cli.StringSliceFlag{
+			Name:  "profile",
+			Usage: "license set filtering profile to include",
+		},
 		//&cli.StringSliceFlag{Name: "config"}, // TODO: map not list
 	}
 	// build the yes and no backend flags
 	for _, b := range lib.Backends {
-		f := &cli.BoolFlag{Name: fmt.Sprintf("no-backend-%s", b)}
+		f := &cli.BoolFlag{
+			Name:     fmt.Sprintf("no-backend-%s", b),
+			Usage:    "do not include this backend",
+			Category: "backends",
+		}
 		flags = append(flags, f)
 	}
 	for _, b := range lib.Backends {
-		f := &cli.BoolFlag{Name: fmt.Sprintf("yes-backend-%s", b)}
+		f := &cli.BoolFlag{
+			Name:     fmt.Sprintf("yes-backend-%s", b),
+			Usage:    "only include this backend",
+			Category: "backends",
+		}
 		flags = append(flags, f)
 	}
 
@@ -133,7 +171,10 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 					return Web(c, program, version, debug, logf)
 				},
 				Flags: []cli.Flag{
-					&cli.StringSliceFlag{Name: "profile"},
+					&cli.StringSliceFlag{
+						Name:  "profile",
+						Usage: "license set filtering profile to include",
+					},
 				},
 			},
 		},

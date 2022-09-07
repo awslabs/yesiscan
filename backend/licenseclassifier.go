@@ -78,6 +78,9 @@ func (obj *LicenseClassifier) ScanPath(ctx context.Context, path safepath.Path, 
 	if info.FileInfo.IsDir() { // path.IsDir() should be the same.
 		return nil, nil // skip
 	}
+	if info.FileInfo.Size() == 0 {
+		return nil, nil // skip
+	}
 
 	filenames := []string{path.Path()}
 

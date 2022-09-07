@@ -107,6 +107,9 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 	if info.FileInfo.IsDir() { // path.IsDir() should be the same.
 		return nil, nil // skip
 	}
+	if info.FileInfo.Size() == 0 {
+		return nil, nil // skip
+	}
 
 	filename := path.Path()
 

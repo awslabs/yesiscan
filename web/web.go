@@ -18,6 +18,8 @@
 //
 // This is not an official Amazon product. Amazon does not offer support for
 // this project.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package web
 
@@ -358,6 +360,8 @@ We will never require a CLA to submit a patch. All contributions follow the
 
 This is not an official Amazon product. Amazon does not offer support for
 this project.
+
+SPDX-License-Identifier: Apache-2.0
 </pre>
 <a href="https://github.com/awslabs/yesiscan/">https://github.com/awslabs/yesiscan/</a>
 </div>

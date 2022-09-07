@@ -18,6 +18,8 @@
 //
 // This is not an official Amazon product. Amazon does not offer support for
 // this project.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 // Package interfaces has all the common interfaces and structs that are needed
 // throughout this software. It is imported by many packages. It must not import

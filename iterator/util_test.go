@@ -18,6 +18,8 @@
 //
 // This is not an official Amazon product. Amazon does not offer support for
 // this project.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package iterator_test
 

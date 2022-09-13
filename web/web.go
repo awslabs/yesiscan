@@ -565,6 +565,13 @@ func (obj *Server) Router() *gin.Engine {
 		})
 	})
 
+	// add a ping endpoint for load balancers/etc
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "we're alive!",
+		})
+	})
+
 	scan := func(c *gin.Context) (string, error) {
 
 		uri := c.PostForm("uri")

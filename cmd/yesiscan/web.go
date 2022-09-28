@@ -52,6 +52,7 @@ func Web(c *cli.Context, program, version string, debug bool, logf func(format s
 		},
 
 		Profiles: c.StringSlice("profile"),
+		Listen:   c.String("listen"),
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

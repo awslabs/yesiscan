@@ -440,6 +440,11 @@ type Server struct {
 	// ~/.config/yesiscan/profiles/<name>.json or full paths.
 	Profiles []string
 
+	// Listen is the ip/port combination for the server to listen on. If it
+	// is empty, then a default is used. For example, you might specify:
+	// "127.0.0.1:8000" or just ":8000".
+	Listen string
+
 	// reportPrefix is the path where we store and load the reports from.
 	reportPrefix safepath.AbsDir
 
@@ -476,8 +481,12 @@ func (obj *Server) Run(ctx context.Context) error {
 		return err
 	}
 	obj.Logf("report prefix: %s", obj.reportPrefix)
+	listen := serverAddr
+	if obj.Listen != "" {
+		listen = obj.Listen
+	}
 
-	//conn, err := net.Listen("tcp", serverAddr)
+	//conn, err := net.Listen("tcp", listen)
 	//if err != nil {
 	//	return err
 	//}
@@ -488,19 +497,24 @@ func (obj *Server) Run(ctx context.Context) error {
 	router := obj.Router()
 	obj.ginEngine = router
 
-	if strings.HasPrefix(serverAddr, ":") {
-		obj.Logf("server: startup on http://localhost%s/", serverAddr)
+	if strings.HasPrefix(listen, ":") {
+		p := strings.TrimPrefix(listen, ":")
+		port, err := strconv.Atoi(p)
+		if err != nil { // invalid port
+			return err
+		}
+		obj.Logf("server: startup on port %d, test at: http://localhost%s/", port, listen)
 	} else {
-		obj.Logf("server: startup on http://%s/", serverAddr)
+		obj.Logf("server: startup on http://%s/", listen)
 	}
 
-	//router.Run(serverAddr)
+	//router.Run(listen)
 	//readTimeout := 60*60
 	//writeTimeout := 60*60
 	server := &http.Server{
 		//ReadTimeout: time.Duration(readTimeout) * time.Second,
 		//WriteTimeout: time.Duration(writeTimeout) * time.Second,
-		Addr:    serverAddr,
+		Addr:    listen,
 		Handler: router,
 	}
 

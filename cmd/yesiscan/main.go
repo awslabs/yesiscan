@@ -177,6 +177,10 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 						Name:  "profile",
 						Usage: "license set filtering profile to include",
 					},
+					&cli.StringFlag{
+						Name:  "listen",
+						Usage: "address/port to listen on (eg: 127.0.0.1:8000)",
+					},
 				},
 			},
 		},

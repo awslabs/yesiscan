@@ -431,6 +431,12 @@ after seven days. This is an Amazon imposed limit.
 #### --region
 This is the S3 region that is used for uploading files to S3 buckets.
 
+#### --listen
+
+This flag is used by the web variant to tell the server where to listen. You can
+specify a port or both a port and ip address. For example, try: `127.0.0.1:8000`
+or `:8000`.
+
 #### --profile
 
 This flag may be used multiple times to enable different profiles. This is used

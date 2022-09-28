@@ -26,9 +26,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"os/signal"
 	"os"
+	"os/signal"
+	"strings"
 
 	"github.com/awslabs/yesiscan/web"
 

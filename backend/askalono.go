@@ -29,10 +29,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 
+	"github.com/awslabs/yesiscan/backend/askalono"
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/licenses"
@@ -40,9 +42,6 @@ import (
 )
 
 const (
-	// AskalonoProgram is the name of the askalono executable.
-	AskalonoProgram = "askalono"
-
 	// AskalonoConfidenceError is the error string askalono returns for when
 	// it doesn't have high enough confidence in a file.
 	AskalonoConfidenceError = "Confidence threshold not high enough for any known license"
@@ -57,8 +56,9 @@ const (
 // something more complicated like scancode.
 // See: https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
 type Askalono struct {
-	Debug bool
-	Logf  func(format string, v ...interface{})
+	Debug  bool
+	Logf   func(format string, v ...interface{})
+	Prefix safepath.AbsDir
 
 	// SkipZeroResults tells this backend to avoid erroring when we aren't
 	// able to determine if a file matches a known license. Since this
@@ -66,6 +66,9 @@ type Askalono struct {
 	// only good at being presented with actual licenses, this is useful if
 	// file filtering is not enabled.
 	SkipZeroResults bool
+
+	// binary is the path of the executable to run.
+	binary string
 }
 
 func (obj *Askalono) String() string {
@@ -74,16 +77,38 @@ func (obj *Askalono) String() string {
 
 func (obj *Askalono) Setup(ctx context.Context) error {
 	// This runs --help to check this is in the path and running properly.
+	// It also unpacks the embedded askalono binary if we have one to use!
+
+	name, err := askalono.GetExpectedName() // what the binary expected to be named
+	if err != nil {
+		return err
+	}
+	obj.binary = name.Path() // the default
+
+	relDir := safepath.UnsafeParseIntoRelDir("askalono/")
+	prefix := safepath.JoinToAbsDir(obj.Prefix, relDir)
+	if err := os.MkdirAll(prefix.Path(), interfaces.Umask); err != nil {
+		return err
+	}
+
+	if size, absFile, err := askalono.InstallBinary(prefix); err != nil {
+		// not a permanent error, we can fall back to anything built-in
+		obj.Logf("unpacking binary failed: %v", err)
+	} else {
+		obj.binary = absFile.Path() // use this specific path instead!
+		// TODO: change to human readable bytes
+		obj.Logf("installed: %d bytes to disk at %s", size, obj.binary)
+	}
 
 	args := []string{"--help"}
 
-	prog := fmt.Sprintf("%s %s", AskalonoProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", obj.binary, strings.Join(args, " "))
 
 	obj.Logf("running: %s", prog)
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
-	cmd := exec.CommandContext(ctx, AskalonoProgram, args...)
+	cmd := exec.CommandContext(ctx, obj.binary, args...)
 	cmd.Dir = ""
 	cmd.Env = []string{}
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -97,7 +122,7 @@ func (obj *Askalono) Setup(ctx context.Context) error {
 			obj.Logf("either run with --no-backend-askalono or install askalono into your $PATH")
 		}
 
-		obj.Logf("your %s doesn't seem to be working properly, check how it was installed?", AskalonoProgram)
+		obj.Logf("your %s doesn't seem to be working properly, check how it was installed?", obj.binary)
 		return errwrap.Wrapf(err, "error running: %s", prog)
 	}
 
@@ -121,7 +146,7 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 	// yes the args need to go in this order, nothing else works...
 	args := []string{"--format", "json", "identify", "--optimize", filename}
 
-	prog := fmt.Sprintf("%s %s", AskalonoProgram, strings.Join(args, " "))
+	prog := fmt.Sprintf("%s %s", obj.binary, strings.Join(args, " "))
 
 	// TODO: add a progress bar of some sort somewhere
 	if obj.Debug {
@@ -130,7 +155,7 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	// TODO: do we need to do the ^C handling?
 	// XXX: is the ^C context cancellation propagating into this correctly?
-	cmd := exec.CommandContext(ctx, AskalonoProgram, args...)
+	cmd := exec.CommandContext(ctx, obj.binary, args...)
 
 	cmd.Dir = ""
 	cmd.Env = []string{}
@@ -204,28 +229,29 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 // AskalonoOutput is modelled after the askalono output format.
 //
 // example:
-//{
-//	"path": "/home/ANT.AMAZON.COM/purple/code/license-finder-repo/spdx.go",
-//	"result": {
-//		"score": 0.9310345,
-//		"license": {
-//			"name": "MIT",
-//			"kind":"original",
-//			"aliases": []
-//		},
-//		"containing": [
-//			{
-//				"score":0.993865,
-//				"license": {
-//					"name":"MIT",
-//					"kind":"original",
-//					"aliases": []
-//				},
-//				"line_range":[17,26]
-//			}
-//		]
+//
+//	{
+//		"path": "/home/ANT.AMAZON.COM/purple/code/license-finder-repo/spdx.go",
+//		"result": {
+//			"score": 0.9310345,
+//			"license": {
+//				"name": "MIT",
+//				"kind":"original",
+//				"aliases": []
+//			},
+//			"containing": [
+//				{
+//					"score":0.993865,
+//					"license": {
+//						"name":"MIT",
+//						"kind":"original",
+//						"aliases": []
+//					},
+//					"line_range":[17,26]
+//				}
+//			]
+//		}
 //	}
-//}
 type AskalonoOutput struct {
 	// Path is an absolute file path to the file being scanned.
 	Path string `json:"path"`

@@ -203,6 +203,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 			Logf: func(format string, v ...interface{}) {
 				obj.Logf("backend: "+format, v...)
 			},
+			Prefix: safePrefixAbsDir,
 
 			// useful for testing before we add file name filtering
 			//SkipZeroResults: true,

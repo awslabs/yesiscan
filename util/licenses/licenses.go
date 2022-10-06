@@ -40,6 +40,7 @@ import (
 
 // licensesJson is populated automatically at build-time from the official spdx
 // licenses.json file, which is linked into this repository as a git submodule.
+//
 //go:embed license-list-data/json/licenses.json
 var licensesJSON []byte
 

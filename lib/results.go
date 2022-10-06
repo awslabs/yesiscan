@@ -46,13 +46,11 @@ type SortedBackends []*AnnotatedBackend
 
 func (obj SortedBackends) Len() int      { return len(obj) }
 func (obj SortedBackends) Swap(i, j int) { obj[i], obj[j] = obj[j], obj[i] }
-
-//func (obj SortedBackends) Less(i, j int) bool { return obj[i].Weight < obj[j].Weight }
 func (obj SortedBackends) Less(i, j int) bool {
 	return obj[i].ScaledConfidence < obj[j].ScaledConfidence
 }
 
-//func (obj SortedBackends) Sort()     { sort.Sort(obj) }
+//func (obj SortedBackends) Sort() { sort.Sort(obj) }
 
 // SimpleResults is a simple way to format the results. This is the first
 // display function created and is mostly used for debugging and initial POC.

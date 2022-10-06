@@ -24,21 +24,21 @@
 package s3
 
 import (
-	"errors"
 	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/awslabs/yesiscan/util/errwrap"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	s3config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 const (
@@ -84,7 +84,6 @@ type Inputs struct {
 	Debug bool
 	Logf  func(format string, v ...interface{})
 }
-
 
 // Store takes some inputs and stores the data into s3. If successful, it
 // returns a presign URL that can be shared to give access to the object. If you
@@ -198,7 +197,7 @@ func Store(ctx context.Context, inputs *Inputs) (string, error) {
 	// given X-Amz-Expires must be less than 604800 seconds. (equal is okay)
 	// TODO: i suppose we could allow the user to specify the expiry time,
 	// but the maximum is so short, we'll hardcode this in here for now.
-	presignClient := s3.NewPresignClient(client, s3.WithPresignExpires(7 * 24 * time.Hour))
+	presignClient := s3.NewPresignClient(client, s3.WithPresignExpires(7*24*time.Hour))
 
 	presignResult, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(inputs.BucketName),

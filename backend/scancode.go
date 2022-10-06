@@ -210,143 +210,144 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 // ScancodeOutput is modelled after the scancode output format.
 //
 // example:
-//{
-//  "headers": [
-//    {
-//      "tool_name": "scancode-toolkit",
-//      "tool_version": "30.1.0",
-//      "options": {
-//        "input": [
-//          "/home/ANT.AMAZON.COM/purple/code/yesiscan/COPYING"
-//        ],
-//        "--copyright": true,
-//        "--full-root": true,
-//        "--json-pp": "-",
-//        "--license": true,
-//        "--only-findings": true,
-//        "--summary-with-details": true
-//      },
-//      "notice": "Generated with ScanCode and provided on an \"AS IS\" BASIS, WITHOUT WARRANTIES\nOR CONDITIONS OF ANY KIND, either express or implied. No content created from\nScanCode should be considered or used as legal advice. Consult an Attorney\nfor any legal advice.\nScanCode is a free software code scanning tool from nexB Inc. and others.\nVisit https://github.com/nexB/scancode-toolkit/ for support and download.",
-//      "start_timestamp": "2022-05-16T173951.395171",
-//      "end_timestamp": "2022-05-16T173953.393255",
-//      "output_format_version": "1.0.0",
-//      "duration": 1.9980971813201904,
-//      "message": null,
-//      "errors": [],
-//      "extra_data": {
-//        "spdx_license_list_version": "3.14",
-//        "OUTDATED": "WARNING: Outdated ScanCode Toolkit version! You are using an outdated version of ScanCode Toolkit: 30.1.0 released on: 2021-09-24. A new version is available with important improvements including bug and security fixes, updated license, copyright and package detection, and improved scanning accuracy. Please download and install the latest version of ScanCode. Visit https://github.com/nexB/scancode-toolkit/releases for details.",
-//        "files_count": 1
-//      }
-//    }
-//  ],
-//  "summary": {
-//    "license_expressions": [
-//      {
-//        "value": "apache-2.0",
-//        "count": 1
-//      }
-//    ],
-//    "copyrights": [
-//      {
-//        "value": null,
-//        "count": 1
-//      }
-//    ],
-//    "holders": [
-//      {
-//        "value": null,
-//        "count": 1
-//      }
-//    ],
-//    "authors": [
-//      {
-//        "value": null,
-//        "count": 1
-//      }
-//    ]
-//  },
-//  "files": [
-//    {
-//      "path": "/home/ANT.AMAZON.COM/purple/code/yesiscan/COPYING",
-//      "type": "file",
-//      "licenses": [
-//        {
-//          "key": "apache-2.0",
-//          "score": 100,
-//          "name": "Apache License 2.0",
-//          "short_name": "Apache 2.0",
-//          "category": "Permissive",
-//          "is_exception": false,
-//          "is_unknown": false,
-//          "owner": "Apache Software Foundation",
-//          "homepage_url": "http://www.apache.org/licenses/",
-//          "text_url": "http://www.apache.org/licenses/LICENSE-2.0",
-//          "reference_url": "https://scancode-licensedb.aboutcode.org/apache-2.0",
-//          "scancode_text_url": "https://github.com/nexB/scancode-toolkit/tree/develop/src/licensedcode/data/licenses/apache-2.0.LICENSE",
-//          "scancode_data_url": "https://github.com/nexB/scancode-toolkit/tree/develop/src/licensedcode/data/licenses/apache-2.0.yml",
-//          "spdx_license_key": "Apache-2.0",
-//          "spdx_url": "https://spdx.org/licenses/Apache-2.0",
-//          "start_line": 2,
-//          "end_line": 202,
-//          "matched_rule": {
-//            "identifier": "apache-2.0.LICENSE",
-//            "license_expression": "apache-2.0",
-//            "licenses": [
-//              "apache-2.0"
-//            ],
-//            "referenced_filenames": [],
-//            "is_license_text": true,
-//            "is_license_notice": false,
-//            "is_license_reference": false,
-//            "is_license_tag": false,
-//            "is_license_intro": false,
-//            "has_unknown": false,
-//            "matcher": "1-hash",
-//            "rule_length": 1581,
-//            "matched_length": 1581,
-//            "match_coverage": 100,
-//            "rule_relevance": 100
-//          }
-//        }
-//      ],
-//      "license_expressions": [
-//        "apache-2.0"
-//      ],
-//      "percentage_of_license_text": 100,
-//      "copyrights": [],
-//      "holders": [],
-//      "authors": [],
-//      "summary": {
-//        "license_expressions": [
-//          {
-//            "value": "apache-2.0",
-//            "count": 1
-//          }
-//        ],
-//        "copyrights": [
-//          {
-//            "value": null,
-//            "count": 1
-//          }
-//        ],
-//        "holders": [
-//          {
-//            "value": null,
-//            "count": 1
-//          }
-//        ],
-//        "authors": [
-//          {
-//            "value": null,
-//            "count": 1
-//          }
-//        ]
-//      },
-//      "scan_errors": []
-//    }
-//  ]
-//}
+//
+//	{
+//	 "headers": [
+//	   {
+//	     "tool_name": "scancode-toolkit",
+//	     "tool_version": "30.1.0",
+//	     "options": {
+//	       "input": [
+//	         "/home/ANT.AMAZON.COM/purple/code/yesiscan/COPYING"
+//	       ],
+//	       "--copyright": true,
+//	       "--full-root": true,
+//	       "--json-pp": "-",
+//	       "--license": true,
+//	       "--only-findings": true,
+//	       "--summary-with-details": true
+//	     },
+//	     "notice": "Generated with ScanCode and provided on an \"AS IS\" BASIS, WITHOUT WARRANTIES\nOR CONDITIONS OF ANY KIND, either express or implied. No content created from\nScanCode should be considered or used as legal advice. Consult an Attorney\nfor any legal advice.\nScanCode is a free software code scanning tool from nexB Inc. and others.\nVisit https://github.com/nexB/scancode-toolkit/ for support and download.",
+//	     "start_timestamp": "2022-05-16T173951.395171",
+//	     "end_timestamp": "2022-05-16T173953.393255",
+//	     "output_format_version": "1.0.0",
+//	     "duration": 1.9980971813201904,
+//	     "message": null,
+//	     "errors": [],
+//	     "extra_data": {
+//	       "spdx_license_list_version": "3.14",
+//	       "OUTDATED": "WARNING: Outdated ScanCode Toolkit version! You are using an outdated version of ScanCode Toolkit: 30.1.0 released on: 2021-09-24. A new version is available with important improvements including bug and security fixes, updated license, copyright and package detection, and improved scanning accuracy. Please download and install the latest version of ScanCode. Visit https://github.com/nexB/scancode-toolkit/releases for details.",
+//	       "files_count": 1
+//	     }
+//	   }
+//	 ],
+//	 "summary": {
+//	   "license_expressions": [
+//	     {
+//	       "value": "apache-2.0",
+//	       "count": 1
+//	     }
+//	   ],
+//	   "copyrights": [
+//	     {
+//	       "value": null,
+//	       "count": 1
+//	     }
+//	   ],
+//	   "holders": [
+//	     {
+//	       "value": null,
+//	       "count": 1
+//	     }
+//	   ],
+//	   "authors": [
+//	     {
+//	       "value": null,
+//	       "count": 1
+//	     }
+//	   ]
+//	 },
+//	 "files": [
+//	   {
+//	     "path": "/home/ANT.AMAZON.COM/purple/code/yesiscan/COPYING",
+//	     "type": "file",
+//	     "licenses": [
+//	       {
+//	         "key": "apache-2.0",
+//	         "score": 100,
+//	         "name": "Apache License 2.0",
+//	         "short_name": "Apache 2.0",
+//	         "category": "Permissive",
+//	         "is_exception": false,
+//	         "is_unknown": false,
+//	         "owner": "Apache Software Foundation",
+//	         "homepage_url": "http://www.apache.org/licenses/",
+//	         "text_url": "http://www.apache.org/licenses/LICENSE-2.0",
+//	         "reference_url": "https://scancode-licensedb.aboutcode.org/apache-2.0",
+//	         "scancode_text_url": "https://github.com/nexB/scancode-toolkit/tree/develop/src/licensedcode/data/licenses/apache-2.0.LICENSE",
+//	         "scancode_data_url": "https://github.com/nexB/scancode-toolkit/tree/develop/src/licensedcode/data/licenses/apache-2.0.yml",
+//	         "spdx_license_key": "Apache-2.0",
+//	         "spdx_url": "https://spdx.org/licenses/Apache-2.0",
+//	         "start_line": 2,
+//	         "end_line": 202,
+//	         "matched_rule": {
+//	           "identifier": "apache-2.0.LICENSE",
+//	           "license_expression": "apache-2.0",
+//	           "licenses": [
+//	             "apache-2.0"
+//	           ],
+//	           "referenced_filenames": [],
+//	           "is_license_text": true,
+//	           "is_license_notice": false,
+//	           "is_license_reference": false,
+//	           "is_license_tag": false,
+//	           "is_license_intro": false,
+//	           "has_unknown": false,
+//	           "matcher": "1-hash",
+//	           "rule_length": 1581,
+//	           "matched_length": 1581,
+//	           "match_coverage": 100,
+//	           "rule_relevance": 100
+//	         }
+//	       }
+//	     ],
+//	     "license_expressions": [
+//	       "apache-2.0"
+//	     ],
+//	     "percentage_of_license_text": 100,
+//	     "copyrights": [],
+//	     "holders": [],
+//	     "authors": [],
+//	     "summary": {
+//	       "license_expressions": [
+//	         {
+//	           "value": "apache-2.0",
+//	           "count": 1
+//	         }
+//	       ],
+//	       "copyrights": [
+//	         {
+//	           "value": null,
+//	           "count": 1
+//	         }
+//	       ],
+//	       "holders": [
+//	         {
+//	           "value": null,
+//	           "count": 1
+//	         }
+//	       ],
+//	       "authors": [
+//	         {
+//	           "value": null,
+//	           "count": 1
+//	         }
+//	       ]
+//	     },
+//	     "scan_errors": []
+//	   }
+//	 ]
+//	}
 type ScancodeOutput struct {
 	// Headers are some output about scancode itself mostly.
 	Headers interface{} `json:"headers"`

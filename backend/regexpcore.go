@@ -130,7 +130,13 @@ func (obj *RegexpCore) ScanData(ctx context.Context, data []byte, info *interfac
 			}
 
 			lid := obj.Rules[i].ID
-			licenseMap[lid] = struct{}{}
+			// TODO: replace this with a generic license parser and
+			// alias matcher.
+			split := strings.Split(lid, " AND ")
+			for _, l := range split {
+				l = strings.TrimSpace(l)
+				licenseMap[l] = struct{}{}
+			}
 			if !obj.MultipleMatch {
 				break // just break this inner loop
 			}

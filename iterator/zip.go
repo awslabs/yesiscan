@@ -228,7 +228,7 @@ func (obj *Zip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 	}
 
 	filesTotal := 0
-	bytesTotal := int64(64)
+	bytesTotal := int64(0)
 	// Iterate through the files in the archive.
 	// XXX: can a child directory appear before a parent?
 	// TODO: add a recurring progress logf if it takes longer than 30 sec

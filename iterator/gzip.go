@@ -232,7 +232,7 @@ func (obj *Gzip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]inter
 	z.Multistream(false) // TODO: do we ever want to allow this here?
 
 	filesTotal := 0
-	bytesTotal := int64(64)
+	bytesTotal := int64(0)
 	// Iterate through the files in the archive.
 	// TODO: add a recurring progress logf if it takes longer than 30 sec
 	for {

@@ -221,7 +221,7 @@ func (obj *Tar) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 	//defer z.Close() // doesn't exist, magic happens in Next()!
 
 	filesTotal := 0
-	bytesTotal := int64(64)
+	bytesTotal := int64(0)
 	emptyTotal := 0
 	// Iterate through the files in the archive.
 	// XXX: can a child directory appear before a parent?

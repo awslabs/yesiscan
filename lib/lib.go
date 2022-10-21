@@ -235,6 +235,8 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 		return nil, errwrap.Wrapf(ea, "core run errored")
 	}
 
+	obj.Logf("scanning complete!") // clears the last "scanning: ..." message
+
 	return allResultSets, nil
 }
 

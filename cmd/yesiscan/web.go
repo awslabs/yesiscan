@@ -30,6 +30,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/awslabs/yesiscan/util/ansi"
 	"github.com/awslabs/yesiscan/web"
 
 	cli "github.com/urfave/cli/v2" // imports as package "cli"
@@ -39,7 +40,15 @@ import (
 // server.
 // TODO: replace the *cli.Context with a more general context that can be used
 // by all the different frontends.
-func Web(c *cli.Context, program, version string, debug bool, logf func(format string, v ...interface{})) error {
+func Web(c *cli.Context, program, version string, debug bool) error {
+	logf := (&ansi.Logf{
+		Prefix:   "main: ",
+		Ellipsis: "...",
+		Enable:   false,
+		Prefixes: []string{},
+	}).Init()
+	logf("Hello from purpleidea! This is %s, version: %s", program, version)
+	defer logf("Done!")
 
 	server := &web.Server{
 		Program: program,

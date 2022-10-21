@@ -18,4 +18,5 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ssgelm/cookiejarparser v1.0.1 // indirect
 	github.com/urfave/cli/v2 v2.14.1 // indirect
+	golang.org/x/term v0.1.0 // indirect
 )

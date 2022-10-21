@@ -48,6 +48,7 @@ import (
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/s3"
+	"github.com/awslabs/yesiscan/util/ansi"
 	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/safepath"
 	"github.com/awslabs/yesiscan/web"
@@ -86,7 +87,7 @@ const (
 )
 
 // CLI is the entry point for the CLI frontend.
-func CLI(program, version string, debug bool, logf func(format string, v ...interface{})) error {
+func CLI(program, version string, debug bool) error {
 
 	flags := []cli.Flag{
 		&cli.StringFlag{
@@ -100,6 +101,10 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 		&cli.BoolFlag{
 			Name:  "quiet",
 			Usage: "remove most log messages",
+		},
+		&cli.BoolFlag{
+			Name:  "ansi-magic",
+			Usage: "do some ansi terminal escape sequence magic",
 		},
 		&cli.StringFlag{
 			Name:  "regexp-path",
@@ -153,10 +158,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 		Name:  program,
 		Usage: "scan code for legal things",
 		Action: func(c *cli.Context) error {
-			logf("Hello from purpleidea! This is %s, version: %s", program, version)
-			defer logf("Done!")
-
-			return App(c, program, version, debug, logf)
+			return App(c, program, version, debug)
 		},
 		Flags:                flags,
 		EnableBashCompletion: true,
@@ -167,10 +169,7 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 				Aliases: []string{"web"},
 				Usage:   "launch a web server mode",
 				Action: func(c *cli.Context) error {
-					logf("Hello from purpleidea! This is %s, version: %s", program, version)
-					defer logf("Done!")
-
-					return Web(c, program, version, debug, logf)
+					return Web(c, program, version, debug)
 				},
 				Flags: []cli.Flag{
 					&cli.StringSliceFlag{
@@ -190,12 +189,13 @@ func CLI(program, version string, debug bool, logf func(format string, v ...inte
 }
 
 // App is the main entry point action for the regular yesiscan cli application.
-func App(c *cli.Context, program, version string, debug bool, logf func(format string, v ...interface{})) error {
+func App(c *cli.Context, program, version string, debug bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	bigIntStr := "" // for our int
 	var quiet bool
+	var ansiMagic bool
 	var regexpPath string
 	// config-path makes no sense here
 	var outputType string
@@ -222,6 +222,9 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 		}
 		if config.Quiet != nil {
 			quiet = *config.Quiet
+		}
+		if config.AnsiMagic != nil {
+			ansiMagic = *config.AnsiMagic
 		}
 		if config.RegexpPath != nil {
 			regexpPath = *config.RegexpPath
@@ -268,6 +271,9 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 	if c.IsSet("quiet") {
 		quiet = c.Bool("quiet")
 	}
+	if c.IsSet("ansi-magic") {
+		ansiMagic = c.Bool("ansi-magic")
+	}
 	if c.IsSet("regexp-path") {
 		regexpPath = c.String("regexp-path")
 	}
@@ -296,6 +302,21 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 	//		configs[k] = v
 	//	}
 	//}
+
+	logf := (&ansi.Logf{
+		Prefix:   "main: ",
+		Ellipsis: "...",
+		Enable:   ansiMagic,
+		Prefixes: []string{
+			//"core: ",
+			"backend: installed: ",
+			"backend: running: ",
+			"iterator: ",
+			"core: scanner: scanning: ",
+		},
+	}).Init()
+	logf("Hello from purpleidea! This is %s, version: %s", program, version)
+	defer logf("Done!")
 
 	// auto config URI magic...
 	if autoConfigURI != "" { // we must try to auto config
@@ -341,7 +362,7 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 
 			// recurse!
 			logf("recursing on new config...")
-			return App(c, program, version, debug, logf)
+			return App(c, program, version, debug)
 
 		} else if err != nil {
 			// provide logs so users know something is wrong...
@@ -445,7 +466,7 @@ func App(c *cli.Context, program, version string, debug bool, logf func(format s
 	}
 	if recurse {
 		logf("recursing on new additional config...")
-		return App(c, program, version, debug, logf)
+		return App(c, program, version, debug)
 	}
 
 	if outputPath == "-" || quiet { // if output is stdout, noop logs
@@ -664,6 +685,10 @@ type Config struct {
 	// This is implied if you use the stdout option of --output-path.
 	Quiet *bool `json:"quiet"`
 
+	// AnsiMagic will do some ansi terminal escape sequence magic to keep
+	// the console output cleaner if this is set.
+	AnsiMagic *bool `json:"ansi-magic"`
+
 	// RegexpPath specifies a path the regular expressions to use.
 	RegexpPath *string `json:"regexp-path"`
 	// config-path makes no sense here
@@ -809,14 +834,12 @@ func DownloadConfig(uri string) ([]byte, error) {
 
 func main() {
 	debug := false // TODO: hardcoded for now
-	logf := func(format string, v ...interface{}) {
-		fmt.Fprintf(os.Stderr, "main: "+format+"\n", v...)
-	}
+
 	program = strings.TrimSpace(program)
 	version = strings.TrimSpace(version)
 	if program == "" || version == "" {
 		// run `go generate` before you build it.
-		logf("program was not compiled correctly")
+		fmt.Printf("program was not compiled correctly\n")
 		os.Exit(1)
 		return
 	}
@@ -824,12 +847,12 @@ func main() {
 	// FIXME: We discard output from lib's that use `log` package directly.
 	log.SetOutput(io.Discard)
 
-	err := CLI(program, version, debug, logf) // TODO: put these args in an input struct
-	if err != nil {
+	// TODO: put these args in an input struct
+	if err := CLI(program, version, debug); err != nil {
 		if debug {
-			logf("failed: %+v", err)
+			fmt.Printf("failed: %+v\n", err)
 		} else {
-			logf("failed: %+v", errwrap.Cause(err))
+			fmt.Printf("failed: %+v\n", errwrap.Cause(err))
 		}
 		os.Exit(1)
 		return

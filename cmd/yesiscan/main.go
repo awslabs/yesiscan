@@ -48,6 +48,7 @@ import (
 	"github.com/awslabs/yesiscan/interfaces"
 	"github.com/awslabs/yesiscan/lib"
 	"github.com/awslabs/yesiscan/s3"
+	"github.com/awslabs/yesiscan/util"
 	"github.com/awslabs/yesiscan/util/ansi"
 	"github.com/awslabs/yesiscan/util/errwrap"
 	"github.com/awslabs/yesiscan/util/safepath"
@@ -121,6 +122,10 @@ func CLI(program, version string, debug bool) error {
 		&cli.StringFlag{
 			Name:  "output-path",
 			Usage: "output path for reports (specify a dash for stdout)",
+		},
+		&cli.StringFlag{
+			Name:  "output-template",
+			Usage: "output templated path for reports (specify a dash for stdout)",
 		},
 		&cli.StringFlag{
 			Name:  "output-s3bucket",
@@ -200,6 +205,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	// config-path makes no sense here
 	var outputType string
 	var outputPath string
+	var outputTemplate string
 	var outputS3Bucket string
 	region := s3.DefaultRegion
 	profiles := []string{}
@@ -235,6 +241,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		}
 		if config.OutputPath != nil {
 			outputPath = *config.OutputPath
+		}
+		if config.OutputTemplate != nil {
+			outputTemplate = *config.OutputTemplate
 		}
 		if config.OutputS3Bucket != nil {
 			outputS3Bucket = *config.OutputS3Bucket
@@ -283,6 +292,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 	if c.IsSet("output-path") {
 		outputPath = c.String("output-path")
+	}
+	if c.IsSet("output-template") {
+		outputTemplate = c.String("output-template")
 	}
 	if c.IsSet("output-s3bucket") {
 		outputS3Bucket = c.String("output-s3bucket")
@@ -469,7 +481,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		return App(c, program, version, debug)
 	}
 
-	if outputPath == "-" || quiet { // if output is stdout, noop logs
+	if outputPath == "-" || outputTemplate == "-" || quiet { // if output is stdout, noop logs
 		logf = func(format string, v ...interface{}) {
 			// noop
 		}
@@ -571,7 +583,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 
 	s := ""
-	if outputPath != "" || outputS3Bucket != "" {
+	if outputPath != "" || outputTemplate != "" || outputS3Bucket != "" {
 		var err error
 		// TODO: when we render an html version, should
 		// it look the same as the web `save` output?
@@ -647,6 +659,22 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		if err := os.WriteFile(outputPath, []byte(s), 0660); err != nil {
 			logf("could not write output file: %+v", err)
 		}
+	} else if outputTemplate != "" {
+		// TODO: should we block certain patterns like ".." or similar?
+		replacements := map[string]interface{}{
+			"..": "", // old -> new
+			//"date": time.Now().Format(time.RFC3339), // colons upset xdg-open
+			//"date": time.Now().Unix(), // works perfectly
+			"date": strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "-"),
+		}
+
+		outputPath := util.NamedArgsTemplate(outputTemplate, replacements)
+
+		// TODO: is this the umask we should use?
+		// XXX: set umask for u=rw,go=
+		if err := os.WriteFile(outputPath, []byte(s), 0660); err != nil {
+			logf("could not write templated output file: %+v", err)
+		}
 	}
 
 	if !quiet {
@@ -659,6 +687,27 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 
 	return nil
+}
+
+// NamedArgsTemplate takes a format string that contains named args wrapped in
+// curly brackets, and templates them in. For example, "hello {name}!" will turn
+// into "hello world!" if you pass a map with "name" => "world" into it.
+func NamedArgsTemplate(format string, replacements map[string]interface{}) string {
+	keys := []string{}
+	for k := range replacements {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	args := []string{}
+	for _, k := range keys {
+		s1 := "{" + k + "}"
+		args = append(args, s1)
+		s2 := fmt.Sprint(replacements[k])
+		args = append(args, s2)
+	}
+
+	return strings.NewReplacer(args...).Replace(format)
 }
 
 // Config is a list of settings stored in the users ~/.config/ directory.
@@ -701,6 +750,17 @@ type Config struct {
 	// overwrite any existing file at this location. Use with caution. If
 	// you specify the - character (dash) then it will print to stdout.
 	OutputPath *string `json:"output-path"`
+
+	// OutputTemplate is the location where the report will be saved. This
+	// will overwrite any existing file at this location. Use with caution.
+	// If you specify the - character (dash) then it will print to stdout.
+	// This option is identical to the OutputPath option, except that it
+	// accepts named format strings. Each named format string must be
+	// surrounded by curly braces. Certain dangerous values will be stripped
+	// from the output template, so don't try and be malicious or strange.
+	// The list of valid format string names are as follows.
+	// "date": Returns the RFC3339 date with colons changed to dashes.
+	OutputTemplate *string `json:"output-template"`
 
 	// OutputS3Bucket prints the report to an S3 bucket with this name. Make
 	// sure you don't have anything important in the bucket as it might

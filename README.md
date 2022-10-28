@@ -320,10 +320,10 @@ You can store your default configuration options in a
 `--config-path` argument. If this file exists, then these values will be used as
 defaults. The below flags can override any of these. The following keys are
 supported: `auto-config-uri`, `auto-config-cookie-path`, `quiet`, `regexp-path`,
-`output-type`, `output-path`, `output-s3bucket`, `region`, `profiles`,
-`backends` and `configs`. These keys should all be the top-level keys in a
-single json dictionary. More information on some of these keys are described
-below.
+`output-type`, `output-path`, `output-template`, `output-s3bucket`, `region`,
+`profiles`, `backends` and `configs`. These keys should all be the top-level
+keys in a single json dictionary. More information on some of these keys are
+described below.
 
 #### "profiles"
 
@@ -395,8 +395,8 @@ will automatically look for a file in `~/.config/yesiscan/config.json`.
 
 When run with `--output-type html` the scan results will be output in html. When
 run with `--output-type text` the scan results will be in plain text. This
-requires that you also specify `--output-path` or `--output-s3bucket`. If you
-don't specify this, it will default to `html`.
+requires that you also specify `--output-path` or `--output-template` or
+`--output-s3bucket`. If you don't specify this, it will default to `html`.
 
 #### --output-path
 
@@ -404,6 +404,18 @@ When run with `--output-path <path>` the scan results will be saved to a file.
 This will overwrite whatever file contents are already there, so please use
 carefully. If you specify `-` as the file path, the stdout will be used. This
 will also cause the quiet flag to be enabled.
+
+#### --output-template
+
+When run with `--output-template <path>` the scan results will be saved to a
+file. This will overwrite whatever file contents are already there, so please
+use carefully. If you specify `-` as the file path, the stdout will be used.
+This will also cause the quiet flag to be enabled. This option is identical to
+the --output-path option, except that it accepts named format strings. Each
+named format string must be surrounded by curly braces. Certain dangerous values
+will be stripped from the output template, so don't try and be malicious or
+strange. The list of valid format string names are as follows.
+* "date": Returns the RFC3339 date with colons changed to dashes.
 
 #### --output-s3bucket
 

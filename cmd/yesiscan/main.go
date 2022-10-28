@@ -159,9 +159,17 @@ func CLI(program, version string, debug bool) error {
 		flags = append(flags, f)
 	}
 
+	description := ""
+	description += "Use yesiscan to perform license scanning on your code.\n"
+	description += "For example, try running:\n"
+	description += "yesiscan --output-type html --no-backend-scancode --no-backend-regexp https://github.com/amznpurple/license-finder-repo\n"
 	app := &cli.App{
 		Name:  program,
 		Usage: "scan code for legal things",
+		Authors: []*cli.Author{
+			{Name: "James Shubin (@purpleidea)", Email: "purple@amazon.com"},
+		},
+		Description: strings.TrimSuffix(description, "\n"),
 		Action: func(c *cli.Context) error {
 			return App(c, program, version, debug)
 		},

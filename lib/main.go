@@ -374,6 +374,8 @@ type Output struct {
 	Program string
 	Version string
 
+	// TODO: we could build and return a UID here instead of doing it in
+	// web and separately generating a time UID for --output-template.
 	Args           []string
 	Backends       map[string]bool
 	Results        map[string]map[interfaces.Backend]*interfaces.Result

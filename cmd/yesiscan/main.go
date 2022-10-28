@@ -644,7 +644,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 
 	} else if outputPath != "" {
 		// TODO: is this the umask we should use?
-		if err := os.WriteFile(outputPath, []byte(s), interfaces.Umask); err != nil {
+		if err := os.WriteFile(outputPath, []byte(s), 0660); err != nil {
 			logf("could not write output file: %+v", err)
 		}
 	}

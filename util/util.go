@@ -26,6 +26,7 @@ package util
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -115,4 +116,25 @@ func smartGithubURI(uid string) (string, error) {
 	u.RawFragment = "" // encoded fragment hint (see EscapedFragment method)
 
 	return u.String(), nil
+}
+
+// NamedArgsTemplate takes a format string that contains named args wrapped in
+// curly brackets, and templates them in. For example, "hello {name}!" will turn
+// into "hello world!" if you pass a map with "name" => "world" into it.
+func NamedArgsTemplate(format string, replacements map[string]interface{}) string {
+	keys := []string{}
+	for k := range replacements {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	args := []string{}
+	for _, k := range keys {
+		s1 := "{" + k + "}"
+		args = append(args, s1)
+		s2 := fmt.Sprint(replacements[k])
+		args = append(args, s2)
+	}
+
+	return strings.NewReplacer(args...).Replace(format)
 }

@@ -323,6 +323,11 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	//	}
 	//}
 
+	// If no args or flags are specified, just show the help text.
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowAppHelp(c)
+	}
+
 	logf := (&ansi.Logf{
 		Prefix:   "main: ",
 		Ellipsis: "...",

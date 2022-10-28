@@ -111,9 +111,9 @@ func GetExpectedHash() (string, error) {
 	return h, nil
 }
 
-// GetBinaryZip returns the correct zipped binary for this OS and ARCH. If it
-// doesn't have one available, then it errors.
-func GetBinaryZip() ([]byte, error) {
+// GetZip returns the correct zipped package for this OS and ARCH. If it doesn't
+// have one available, then it errors.
+func GetZip() ([]byte, error) {
 	if arch := runtime.GOARCH; arch != "amd64" {
 		return nil, fmt.Errorf("unsupported arch: %s", arch)
 	}
@@ -182,7 +182,7 @@ func InstallBinary(absDir safepath.AbsDir) (int64, safepath.AbsFile, error) {
 		}
 	}
 
-	b, err := GetBinaryZip()
+	b, err := GetZip()
 	if err != nil {
 		return 0, safepath.AbsFile{}, err
 	}

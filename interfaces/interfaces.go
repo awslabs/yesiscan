@@ -229,6 +229,10 @@ type Result struct {
 	// value of 0.0 means that there is no confidence in the result.
 	Confidence float64
 
+	// Skipped is non-nil when this result skipped scanning for some reason.
+	// If multiple reasons exist, then this can be a multi-err of any sort.
+	Skip error
+
 	// Meta stores some metadata about a result. This is populated by the
 	// engine for tracking purposes, and isn't meant to be either read or
 	// set by the implemented backend that returns this.
@@ -263,6 +267,10 @@ func (obj *Result) Cmp(result *Result) error {
 
 	if obj.Confidence != result.Confidence { // TODO: epsilon?
 		return fmt.Errorf("confidence values don't match: %.4f != %.4f", obj.Confidence, result.Confidence)
+	}
+
+	if obj.Skip != result.Skip {
+		return fmt.Errorf("skip values don't match: %+v != %+v", obj.Skip, result.Skip)
 	}
 
 	// We don't have a substantial reason to need to compare these right now.

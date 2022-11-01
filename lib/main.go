@@ -340,7 +340,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		return nil, errwrap.Wrapf(err, "could not initialize core")
 	}
 
-	results, err := core.Run(ctx)
+	results, passes, err := core.Run(ctx)
 	if err != nil {
 		return nil, errwrap.Wrapf(err, "core run failed")
 	}
@@ -363,6 +363,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		Args:           inputStrings,
 		Backends:       obj.Backends,
 		Results:        results,
+		Passes:         passes,
 		Profiles:       profiles,
 		ProfilesData:   profilesData,
 		BackendWeights: backendWeights,
@@ -379,6 +380,7 @@ type Output struct {
 	Args           []string
 	Backends       map[string]bool
 	Results        map[string]map[interfaces.Backend]*interfaces.Result
+	Passes         []string
 	Profiles       []string
 	ProfilesData   map[string]*ProfileData
 	BackendWeights map[interfaces.Backend]float64
@@ -389,7 +391,7 @@ func ReturnOutputConsole(output *Output) (string, error) {
 	s := ""
 	summary := true // TODO: perhaps configure this somewhere or as a flag?
 	for _, x := range output.Profiles {
-		pro, err := SimpleProfiles(output.Results, output.ProfilesData[x], summary, output.BackendWeights, "ansi")
+		pro, err := SimpleProfiles(output.Results, output.Passes, output.ProfilesData[x], summary, output.BackendWeights, "ansi")
 		if err != nil {
 			return "", err
 		}
@@ -405,7 +407,7 @@ func ReturnOutputFile(output *Output) (string, error) {
 	s := ""
 	summary := true // TODO: perhaps configure this somewhere or as a flag?
 	for _, x := range output.Profiles {
-		pro, err := SimpleProfiles(output.Results, output.ProfilesData[x], summary, output.BackendWeights, "text")
+		pro, err := SimpleProfiles(output.Results, output.Passes, output.ProfilesData[x], summary, output.BackendWeights, "text")
 		if err != nil {
 			return "", err
 		}

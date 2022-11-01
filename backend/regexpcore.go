@@ -142,14 +142,11 @@ func (obj *RegexpCore) ScanData(ctx context.Context, data []byte, info *interfac
 			}
 		}
 	}
-
-	if len(licenseMap) == 0 {
-		// NOTE: this is NOT the same as interfaces.ErrUnknownLicense
-		// because in this scenario, we're comfortable (ish) the parser
-		// is exhaustive at finding a license with this methodology.
-		// We want to return nil, but we error only if Scanner.Err() did
-		// and so normally this returns nil, nil.
-		return nil, errwrap.Wrapf(scanner.Err(), "regexp scanner error")
+	var skip error
+	scannerErr := scanner.Err()
+	if scannerErr == bufio.ErrTooLong {
+		skip = scannerErr // add to ignored files...
+		scannerErr = nil  // reset
 	}
 
 	ids := []string{}
@@ -185,9 +182,19 @@ func (obj *RegexpCore) ScanData(ctx context.Context, data []byte, info *interfac
 		licenseList = append(licenseList, license)
 	}
 
+	if len(licenseMap) == 0 && skip == nil {
+		// NOTE: this is NOT the same as interfaces.ErrUnknownLicense
+		// because in this scenario, we're comfortable (ish) the parser
+		// is exhaustive at finding a license with this methodology.
+		// We want to return nil, but we error only if Scanner.Err() did
+		// and so normally this returns nil, nil.
+		return nil, errwrap.Wrapf(scannerErr, "regexp scanner error")
+	}
+
 	result := &interfaces.Result{
 		Licenses:   licenseList,
 		Confidence: 1.0, // TODO: what should we put here?
+		Skip:       skip,
 	}
 
 	// We perform the strange task of processing any partial results, and
@@ -195,7 +202,7 @@ func (obj *RegexpCore) ScanData(ctx context.Context, data []byte, info *interfac
 	// think this is better than no results. I'll do the same, but there is
 	// no guarantee the calling iterator will use these. (Currently it does
 	// not!)
-	return result, errwrap.Wrapf(scanner.Err(), "regexp scanner error")
+	return result, errwrap.Wrapf(scannerErr, "regexp scanner error")
 }
 
 // RegexpLicenseRule represents the data required for a regexp license rule.

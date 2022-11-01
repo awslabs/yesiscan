@@ -27,6 +27,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/awslabs/yesiscan/interfaces"
@@ -91,7 +92,7 @@ func (obj *Core) Init(ctx context.Context) error {
 // process... There's also no reason that we can't even add the same backend in
 // twice with different params passed to it, as long as each is thread-safe and
 // doesn't incorrectly misuse global state.
-func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
+func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // can be safely called more than once
 
@@ -101,6 +102,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 	scanners := make(chan *Scanner) // list of all scanners (one for each iterator)
 
 	allResultSets := make(map[string]map[interfaces.Backend]*interfaces.Result)
+	allPasses := make(map[string]struct{})
 	resultErrors := []error{}
 
 	wg := &sync.WaitGroup{}
@@ -114,7 +116,8 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 			if obj.Debug {
 				obj.Logf("result(%d) wait", i)
 			}
-			results, err := scanner.Result() // these contain a wg
+			results, err := scanner.Result() // this contains a wg
+			passes, _ := scanner.Passes()    // same error
 			if obj.Debug {
 				obj.Logf("result(%d) done", i)
 			}
@@ -137,6 +140,9 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 			allResultSets, err = interfaces.MergeResultSets(allResultSets, results)
 			if err != nil {
 				resultErrors = append(resultErrors, err)
+			}
+			for _, v := range passes { // collect
+				allPasses[v] = struct{}{}
 			}
 		}
 	}()
@@ -168,7 +174,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 			Backends: obj.Backends,
 		}
 		if err := scanner.Init(); err != nil {
-			return nil, errwrap.Wrapf(err, "scanner init failed")
+			return nil, nil, errwrap.Wrapf(err, "scanner init failed")
 		}
 		defer scanner.Result() // Wait()
 		//scanners = append(scanners, scanner)
@@ -177,7 +183,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 			obj.Logf("running iterator(%d): %s", i, x)
 		}
 		if err := x.Validate(); err != nil {
-			return nil, errwrap.Wrapf(err, "iterator validate failed")
+			return nil, nil, errwrap.Wrapf(err, "iterator validate failed")
 		}
 
 		// Mechanism to end this long iterator loop early if needed...
@@ -201,7 +207,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 		if err != nil {
 			if obj.ShutdownOnError {
 				// this will trigger the ctx cancel() in defer
-				return nil, errwrap.Wrapf(err, "recurse error with: %s", x)
+				return nil, nil, errwrap.Wrapf(err, "recurse error with: %s", x)
 			}
 			errors = append(errors, err)
 			continue
@@ -232,12 +238,25 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, error) {
 		for _, e := range errors {
 			ea = errwrap.Append(ea, e)
 		}
-		return nil, errwrap.Wrapf(ea, "core run errored")
+		return nil, nil, errwrap.Wrapf(ea, "core run errored")
 	}
 
 	obj.Logf("scanning complete!") // clears the last "scanning: ..." message
 
-	return allResultSets, nil
+	// remove any passes which have actually been scanned somewhere
+	for k := range allResultSets {
+		if _, exists := allPasses[k]; exists {
+			delete(allPasses, k)
+		}
+	}
+	passes := []string{}
+	for k := range allPasses {
+		passes = append(passes, k)
+	}
+	sort.Strings(passes)
+
+	// TODO: return a big struct instead?
+	return allResultSets, passes, nil
 }
 
 // Scanner is functionality that encapsulates the running of each backend. It
@@ -260,6 +279,12 @@ type Scanner struct {
 	// backends. Once we have a set of paths, we then look at the backends.
 	results interfaces.ResultSet // guarded by the mutex
 
+	// passes is a set (stored as a map) of all the files which were scanned
+	// but for which no results were extracted. This is different from a
+	// file which was scanned but errored in some way. These are those that
+	// had no determination was made.
+	passes map[string]struct{} // guarded by the mutex
+
 	// skipdirs represents a list of dir paths that backends have told us to
 	// skip over. We cache these to avoid unnecessarily asking the backends.
 	skipdirs map[interfaces.Backend]map[string]struct{}
@@ -271,6 +296,7 @@ func (obj *Scanner) Init() error {
 	obj.mu = &sync.Mutex{}
 
 	obj.results = make(interfaces.ResultSet)
+	obj.passes = make(map[string]struct{})
 
 	obj.skipdirs = make(map[interfaces.Backend]map[string]struct{})
 	for _, backend := range obj.Backends {
@@ -393,7 +419,11 @@ Loop:
 				return // goroutine ends
 			}
 
+			// This should also ingest the SkipDir values...
 			if result == nil { // skip nil results
+				mu.Lock()
+				obj.passes[info.UID] = struct{}{}
+				mu.Unlock()
 				return
 			}
 			// tag (annotate) the result
@@ -453,6 +483,30 @@ Loop:
 func (obj *Scanner) Result() (interfaces.ResultSet, error) {
 	defer obj.wg.Wait()
 	return obj.results, nil // TODO: should we pass the Recurse errors here?
+}
+
+// Passes contains a list of every file scanned that did not get listed in the
+// full ResultSet that is returned by the Result method. That ResultSet will
+// contain files that were skipped over due to a scanning error of some sort.
+// Having an error that occurs during a scan is different from scanning and not
+// being able to get any data from it.
+// TODO: do we want to return a better type?
+func (obj *Scanner) Passes() ([]string, error) {
+	defer obj.wg.Wait()
+	// At least one backend found something on this key. Remove it from
+	// passes.
+	for k := range obj.results {
+		if _, exists := obj.passes[k]; exists {
+			delete(obj.passes, k)
+		}
+	}
+	result := []string{}
+	for k := range obj.passes {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+
+	return result, nil // TODO: should we pass the Recurse errors here?
 }
 
 func tagResultBackend(result *interfaces.Result, backend interfaces.Backend) {

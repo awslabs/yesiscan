@@ -157,24 +157,15 @@ func (obj *Cran) ScanData(ctx context.Context, data []byte, info *interfaces.Inf
 		licenseList = append(licenseList, license)
 	}
 
-	// Finally pass through any sub parser error if we have no licenses.
-	if len(licenseList) == 0 {
-		// If we did not get any license IDs we are returning nil and
-		// any error that we may encounter in the sub parser.
-		return nil, errwrap.Wrapf(subErr, "cran sub-parser error")
-	}
-
+	// We return any partial results, and even if we errored, because we can
+	// now notify the user of these issues separately.
 	result := &interfaces.Result{
 		Licenses:   licenseList,
 		Confidence: 1.0, // TODO: what should we put here?
+		Skip:       errwrap.Wrapf(subErr, "cran sub-parser error"),
 	}
 
-	// We perform the strange task of processing any partial results, and
-	// returning some even if we errored, because the spdx code seems to
-	// think this is better than no results. I'll do the same, but there is
-	// no guarantee the calling iterator will use these. (Currently it does
-	// not!)
-	return result, errwrap.Wrapf(subErr, "cran sub-parser error")
+	return result, nil
 }
 
 // CranDescriptionFileSubParser is used to parse the License field in

@@ -72,17 +72,42 @@ type ProfileData struct {
 // filter function created and is mostly used for an initial POC. It is the
 // more complicated successor to the SimpleResults function. Style can be
 // `ansi`, `html`, or `text`.
-func SimpleProfiles(results interfaces.ResultSet, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
-	if len(results) == 0 {
-		return "", fmt.Errorf("no results obtained")
-	}
+func SimpleProfiles(results interfaces.ResultSet, passes []string, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
 	if style != "ansi" && style != "html" && style != "text" {
 		return "", fmt.Errorf("invalid style: %s", style)
 	}
 
+	redString := func(format string, a ...interface{}) string {
+		if style == "ansi" {
+			return colour.New(colour.FgRed).Add(colour.Bold).Sprintf(format, a...)
+		}
+		if style == "html" {
+			return `<span style="color: red;">` + fmt.Sprintf(format, a...) + "</span>"
+		}
+		return fmt.Sprintf(format, a...)
+	}
+	boldString := func(format string, a ...interface{}) string {
+		if style == "ansi" {
+			return colour.New(colour.Bold).Sprintf(format, a...)
+		}
+		if style == "html" {
+			return `<span style="font-weight: bold;">` + fmt.Sprintf(format, a...) + "</span>"
+		}
+		return fmt.Sprintf(format, a...)
+	}
 	str := ""
+
+	countStr := fmt.Sprintf("%d", len(passes))
+	if len(passes) > 0 {
+		countStr = redString(countStr)
+	}
+
 	hasResults := false                  // do we have anything to show?
 	licenseMap := make(map[string]int64) // for computing a summary
+	errorMap := make(map[string]struct {
+		backend string
+		err     error
+	}) // for recording found skip errors
 	// XXX: handle dir's in here specially and merge in their weights with child paths!
 Loop:
 	for uri, m := range results { // FIXME: sort and process properly
@@ -95,7 +120,15 @@ Loop:
 			innerLicenseMap[name] = val + 1
 		}
 		for backend, result := range m {
-
+			if result.Skip != nil {
+				errorMap[uri] = struct {
+					backend string
+					err     error
+				}{
+					backend: backend.String(),
+					err:     result.Skip,
+				}
+			}
 			// accounting for licenses summary
 			for _, x := range result.Licenses {
 				plus(x.String())
@@ -179,7 +212,6 @@ Loop:
 
 			l := licenses.Join(result.Licenses)
 			if UseColour && profile != nil {
-				redString := colour.New(colour.FgRed).Add(colour.Bold).SprintFunc()
 				ll := []string{}
 				// only colour the matched ones!
 				for _, x := range result.Licenses {
@@ -187,13 +219,7 @@ Loop:
 					inList := licenses.InList(x, profile.Licenses)
 					if inList && !profile.Exclude || !inList && profile.Exclude {
 						r = x.String()
-						if style == "ansi" {
-							r = redString(r)
-						}
-						if style == "html" {
-							r = `<span style="color: red;">` + r + "</span>"
-						}
-						// if style == "text" do nothing
+						r = redString(r)
 					}
 
 					ll = append(ll, r)
@@ -237,39 +263,89 @@ Loop:
 			str += "</td></tr>"
 		}
 	}
-	if !hasResults {
-		if style == "html" {
-			return "<tr><td>no results</td></tr>", nil // TODO: error instead?
-		}
-		return "<no results>", nil // TODO: error instead?
+
+	skippedStr := ""
+	if style == "ansi" {
+		skippedStr = fmt.Sprintf("skipped: %s files/directories\n", countStr)
+	}
+	if style == "html" {
+		s := `<tr><td><table id="summary">`
+		s += fmt.Sprintf("<tr><th>skipped: %s files/directories</th></tr>", countStr)
+		s += "</table></td></tr>"
+		skippedStr = s
+	}
+	if style == "text" {
+		skippedStr = fmt.Sprintf("skipped: %d files/directories\n", countStr)
 	}
 
+	erroredStr := ""
+	if len(errorMap) > 0 { // keep it in scope
+		names := []string{}
+		for k := range errorMap { // map[string]error
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		if style == "ansi" || style == "text" {
+			s := "errors:\n"
+			for _, x := range names {
+				s += fmt.Sprintf("%s: %s (%s)\n", x, redString(errorMap[x].err.Error()), errorMap[x].backend)
+			}
+			erroredStr = s
+		}
+		if style == "html" {
+			s := `<tr><td><table id="summary">`
+			s += `<tr><th colspan="2">errors:</th></tr>`
+			for _, x := range names {
+				s += fmt.Sprintf("<tr><td>%s</td><td>%s (%s)</td></tr>", x, redString(errorMap[x].err.Error()), errorMap[x].backend)
+			}
+
+			s += "</table></td></tr>"
+			erroredStr = s
+		}
+	}
+
+	noResultsStr := ""
+	if !hasResults {
+		noResultsStr = "<no results>"
+		if style == "html" {
+			s := `<tr><td><table id="summary">`
+			s += "<tr><th>no results</th></tr>"
+			s += "</table></td></tr>"
+			noResultsStr = s
+		}
+	}
+
+	summaryStr := ""
 	if summary {
 		names := []string{}
 		for k := range licenseMap { // map[string]int64
 			names = append(names, k)
 		}
 		sort.Strings(names)
-
+		if style == "ansi" || style == "text" {
+			s := boldString("summary:") + "\n"
+			for _, x := range names {
+				s += fmt.Sprintf("%s: %d\n", x, licenseMap[x])
+			}
+			summaryStr = s
+		}
 		if style == "html" {
 			s := `<tr><td><table id="summary">`
-			s += `<tr><th colspan="2">summary:</th></tr>`
+			s += fmt.Sprintf(`<tr><th colspan="2">%s</th></tr>`, boldString("summary:"))
 			for _, x := range names {
 				s += fmt.Sprintf("<tr><td>%s</td><td>%d</td></tr>", x, licenseMap[x])
 			}
 
 			s += "</table></td></tr>"
-
-			return s + str, nil
+			summaryStr = s
 		}
-
-		s := "summary:\n"
-		for _, x := range names {
-			s += fmt.Sprintf("%s: %d\n", x, licenseMap[x])
-		}
-
-		return s + str, nil
 	}
+
+	if !hasResults {
+		summaryStr = ""
+	}
+	// glue it all together
+	str = skippedStr + erroredStr + summaryStr + noResultsStr + str
 
 	return str, nil
 }

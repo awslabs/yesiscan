@@ -99,6 +99,14 @@ func CLI(program, version string, debug bool) error {
 			Name:  "auto-config-cookie-path",
 			Usage: "override/specify an auto config cookie path",
 		},
+		&cli.IntFlag{
+			Name:  "auto-config-expiry-seconds",
+			Usage: "minimum number of seconds before config must be re-downloaded",
+		},
+		&cli.BoolFlag{
+			Name:  "auto-config-force-update",
+			Usage: "force an auto config re-download",
+		},
 		&cli.BoolFlag{
 			Name:  "quiet",
 			Usage: "remove most log messages",
@@ -207,6 +215,8 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	defer stop()
 
 	bigIntStr := "" // for our int
+	var autoConfigExpirySeconds int
+	var autoConfigForceUpdate bool
 	var quiet bool
 	var ansiMagic bool
 	var regexpPath string
@@ -233,6 +243,14 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		if config.AutoConfigCookiePath != nil {
 			// set this global var
 			autoConfigCookiePath = *config.AutoConfigCookiePath
+		}
+		if config.AutoConfigExpirySeconds != nil {
+			// set this global var
+			autoConfigExpirySeconds = *config.AutoConfigExpirySeconds
+		}
+		if config.AutoConfigForceUpdate != nil {
+			// set this global var
+			autoConfigForceUpdate = *config.AutoConfigForceUpdate
 		}
 		if config.Quiet != nil {
 			quiet = *config.Quiet
@@ -284,6 +302,12 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 	if c.IsSet("auto-config-cookie-path") {
 		autoConfigCookiePath = c.String("auto-config-cookie-path")
+	}
+	if c.IsSet("auto-config-expiry-seconds") {
+		autoConfigExpirySeconds = c.Int("auto-config-expiry-seconds")
+	}
+	if c.IsSet("auto-config-force-update") {
+		autoConfigForceUpdate = c.Bool("auto-config-force-update")
 	}
 	if c.IsSet("quiet") {
 		quiet = c.Bool("quiet")
@@ -343,8 +367,40 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	logf("Hello from purpleidea! This is %s, version: %s", program, version)
 	defer logf("Done!")
 
+	if autoConfigForceUpdate && autoConfigURI == "" { // be helpful
+		logf("unable to force auto-config update because auto-config-uri is empty")
+	}
+
+	isExpired := false
+	if autoConfigForceUpdate {
+		isExpired = true
+
+	} else if autoConfigExpirySeconds == 0 {
+		isExpired = true
+
+	} else if autoConfigExpirySeconds < 0 {
+		isExpired = false
+
+	} else if autoConfigURI != "" {
+		p, err := GetConfigPath(c.String("config-path"))
+		if err != nil {
+			return err
+		}
+
+		fileInfo, err := os.Stat(p)
+		if os.IsNotExist(err) { // no config exists here...
+			isExpired = true
+		} else if err != nil {
+			return err
+		}
+
+		if time.Since(fileInfo.ModTime()).Milliseconds() > int64(autoConfigExpirySeconds)*1000 {
+			isExpired = true
+		}
+	}
+
 	// auto config URI magic...
-	if autoConfigURI != "" { // we must try to auto config
+	if autoConfigURI != "" && isExpired { // we must try to auto config
 		logf("getting config from: %s", autoConfigURI)
 		data, err := DownloadConfig(autoConfigURI)
 		if err != nil {
@@ -376,9 +432,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 
 		// if equal, we don't need to change the config...
 		// check it's valid json before writing it? (for portal errors)
-		if err := isJson(data); !bytes.Equal(data, b) && err == nil {
+		if err, equal := isJson(data), bytes.Equal(data, b); (!equal || isExpired) && err == nil {
 
-			// store new config file
+			// store new config file (this also update the mtime!)
 			logf("writing new config...")
 			// XXX: set umask for u=rw,go=
 			if err := os.WriteFile(p, data, interfaces.Umask); err != nil {
@@ -386,8 +442,10 @@ func App(c *cli.Context, program, version string, debug bool) error {
 			}
 
 			// recurse!
-			logf("recursing on new config...")
-			return App(c, program, version, debug)
+			if !equal { // otherwise we'd infinitely loop!
+				logf("recursing on new config...")
+				return App(c, program, version, debug)
+			}
 
 		} else if err != nil {
 			// provide logs so users know something is wrong...
@@ -404,8 +462,10 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	// more auto config URI magic...
 	recurse := false
 	configKeys := []string{}
-	for k := range configs {
-		configKeys = append(configKeys, k)
+	if isExpired {
+		for k := range configs {
+			configKeys = append(configKeys, k)
+		}
 	}
 	sort.Strings(configKeys) // deterministic
 
@@ -466,9 +526,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 
 		// if equal, we don't need to change the config...
 		// check it's valid json before writing it? (for portal errors)
-		if err := isJson(data); !bytes.Equal(data, b) && err == nil {
+		if err, equal := isJson(data), bytes.Equal(data, b); (!equal || isExpired) && err == nil {
 
-			// store new config file
+			// store new config file (this also update the mtime!)
 			logf("writing new additional config to: %s", h)
 			// XXX: set umask for u=rw,go=
 			if err := os.WriteFile(h, data, interfaces.Umask); err != nil {
@@ -476,7 +536,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 			}
 
 			// recurse at the end...
-			recurse = true
+			if !equal { // otherwise we'd infinitely loop!
+				recurse = true
+			}
 
 		} else if err != nil {
 			// provide logs so users know something is wrong...
@@ -742,6 +804,17 @@ type Config struct {
 	// download requests. This is useful if you store your config behind
 	// some gateway that needs a magic cookie for auth.
 	AutoConfigCookiePath *string `json:"auto-config-cookie-path"`
+
+	// AutoConfigExpirySeconds is the minimum number of seconds to wait
+	// before attempting to downloading a new auto-config if one is
+	// available. If this is unset or zero, then this will always attempt a
+	// download. If this is -1, then this will not ever attempt a download
+	// unless force is used.
+	AutoConfigExpirySeconds *int `json:"auto-config-expiry-seconds"`
+
+	// AutoConfigForceUpdate will force an auto-config download if it is
+	// possible to do so.
+	AutoConfigForceUpdate *bool `json:"auto-config-force-update"`
 
 	// Quiet will prevent the tool from talking too much on the console.
 	// This is implied if you use the stdout option of --output-path.

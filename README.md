@@ -319,11 +319,23 @@ You can store your default configuration options in a
 `~/.config/yesiscan/config.json` file. This location can be overridden by the
 `--config-path` argument. If this file exists, then these values will be used as
 defaults. The below flags can override any of these. The following keys are
-supported: `auto-config-uri`, `auto-config-cookie-path`, `quiet`, `regexp-path`,
-`output-type`, `output-path`, `output-template`, `output-s3bucket`, `region`,
-`profiles`, `backends` and `configs`. These keys should all be the top-level
-keys in a single json dictionary. More information on some of these keys are
-described below.
+supported:
+* `auto-config-uri`
+* `auto-config-cookie-path`
+* `auto-config-expiry-seconds`
+* `auto-config-force-update`
+* `quiet`
+* `regexp-path`
+* `output-type`
+* `output-path`
+* `output-template`
+* `output-s3bucket`
+* `region`,
+* `profiles`
+* `backends`
+* `configs`
+These keys should all be the top-level keys in a single json dictionary. More
+information on some of these keys are described below.
 
 #### "profiles"
 
@@ -377,6 +389,16 @@ We only read from this path, and expect another tool to have previously written
 the cookie file there.
 
 For example:  `--auto-config-cookie-path '~/.secret/cookie'`.
+
+#### --auto-config-expiry-seconds
+This value if set is the minimum number of seconds to wait between automatic
+updates of the configuration. If this is set to zero, then updates will always
+be attempted. If this is negative then updates will never be attempted unless
+forcefully request them with `--auto-config-force-update`.
+
+#### --auto-config-force-update
+If this flag is specified, then we will always attempt to update the auto config
+on each run.
 
 #### --quiet
 

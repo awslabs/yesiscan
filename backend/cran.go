@@ -39,10 +39,6 @@ import (
 )
 
 const (
-	// CranMaxBytesLine sets a larger maximum for file line scanning than
-	// the default of bufio.MaxScanTokenSize which is sort of small.
-	CranMaxBytesLine = 1024 * 1024 * 8 // 8 MiB
-
 	// CranLicensePrefix is the string we look for when trying to find a
 	// license.
 	CranLicensePrefix = "License"

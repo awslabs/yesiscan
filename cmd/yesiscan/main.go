@@ -413,6 +413,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 
 	// auto config URI magic...
+	var autoConfigError error
 	if autoConfigURI != "" && (isExpired || isRecurse) { // we must try to auto config
 		logf("getting config from: %s", autoConfigURI)
 		data, err := DownloadConfig(autoConfigURI)
@@ -470,6 +471,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 
 		} else if err != nil {
 			// provide logs so users know something is wrong...
+			autoConfigError = err
 			logf("invalid config file at URI: %s", autoConfigURI)
 			logf("error with config file: %+v", err)
 			if autoConfigCookiePath == "" {
@@ -483,7 +485,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	// more auto config URI magic...
 	recurse := false
 	configKeys := []string{}
-	if isExpired || isRecurse {
+	// only run this if expired or recursing and no previous error...
+	// if we had a previous error, the root config is invalid, stop trying!
+	if (isExpired || isRecurse) && autoConfigError == nil {
 		for k := range configs {
 			configKeys = append(configKeys, k)
 		}

@@ -400,6 +400,12 @@ forcefully request them with `--auto-config-force-update`.
 If this flag is specified, then we will always attempt to update the auto config
 on each run.
 
+#### --noop
+
+If this flag is specified, no scan is done. The auto config code will execute
+though. This is useful to get the config up-to-date without running a scan. It
+can be combined with `--auto-config-force-update` for some guaranteed updates!
+
 #### --quiet
 
 When this boolean flag is enabled, all log messages will be suppressed.

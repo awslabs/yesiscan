@@ -109,6 +109,10 @@ func CLI(program, version string, debug bool) error {
 			Usage: "force an auto config re-download",
 		},
 		&cli.BoolFlag{
+			Name:  "noop",
+			Usage: "do nothing except normal startup (does run auto-config)",
+		},
+		&cli.BoolFlag{
 			Name:  "quiet",
 			Usage: "remove most log messages",
 		},
@@ -676,6 +680,11 @@ func App(c *cli.Context, program, version string, debug bool) error {
 			logf("s3: are your s3 credentials valid?")
 			return errwrap.Wrapf(err, "s3 setup error")
 		}
+	}
+
+	if c.IsSet("noop") {
+		logf("noop!")
+		return nil
 	}
 
 	m := &lib.Main{

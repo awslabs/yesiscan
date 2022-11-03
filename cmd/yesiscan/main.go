@@ -436,6 +436,14 @@ func App(c *cli.Context, program, version string, debug bool) error {
 
 			// store new config file (this also update the mtime!)
 			logf("writing new config...")
+			d := filepath.Dir(p)
+			// maybe the ~/.config/yesiscan/ dir doesn't exist yet!
+			if _, err := os.Stat(d); os.IsNotExist(err) { // no config exists here...
+				if err := os.MkdirAll(d, interfaces.Umask); err != nil {
+					return errwrap.Wrapf(err, "couldn't make config dir at: %s", d)
+				}
+			}
+
 			// XXX: set umask for u=rw,go=
 			if err := os.WriteFile(p, data, interfaces.Umask); err != nil {
 				return errwrap.Wrapf(err, "autoConfigURI store failed on: %s", p)

@@ -116,6 +116,10 @@ func CLI(program, version string, debug bool) error {
 			Name:  "ansi-magic",
 			Usage: "do some ansi terminal escape sequence magic",
 		},
+		&cli.BoolFlag{
+			Name:  "no-ansi-magic",
+			Usage: "do not use the ansi terminal escape sequence magic",
+		},
 		&cli.StringFlag{
 			Name:  "regexp-path",
 			Usage: "path to regexp rules file",
@@ -315,6 +319,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 	if c.IsSet("ansi-magic") {
 		ansiMagic = c.Bool("ansi-magic")
+	}
+	if c.IsSet("no-ansi-magic") {
+		ansiMagic = !c.Bool("no-ansi-magic")
 	}
 	if c.IsSet("regexp-path") {
 		regexpPath = c.String("regexp-path")

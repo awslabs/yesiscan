@@ -40,6 +40,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -399,8 +400,20 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		}
 	}
 
+	// did we just recurse to reload config?
+	// we need to detect this because if we recursed, isExpiry will be false
+	// when it's really an invalid reason for being false when config is new
+	isRecurse := false
+	pcSelf, _, _, ok0 := runtime.Caller(0)   // self
+	pcCaller, _, _, ok1 := runtime.Caller(1) // caller
+	details0 := runtime.FuncForPC(pcSelf)
+	details1 := runtime.FuncForPC(pcCaller)
+	if ok0 && details0 != nil && ok1 && details1 != nil && details0.Name() == details1.Name() {
+		isRecurse = true
+	}
+
 	// auto config URI magic...
-	if autoConfigURI != "" && isExpired { // we must try to auto config
+	if autoConfigURI != "" && (isExpired || isRecurse) { // we must try to auto config
 		logf("getting config from: %s", autoConfigURI)
 		data, err := DownloadConfig(autoConfigURI)
 		if err != nil {
@@ -470,7 +483,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	// more auto config URI magic...
 	recurse := false
 	configKeys := []string{}
-	if isExpired {
+	if isExpired || isRecurse {
 		for k := range configs {
 			configKeys = append(configKeys, k)
 		}

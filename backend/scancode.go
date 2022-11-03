@@ -53,13 +53,6 @@ const (
 type Scancode struct {
 	Debug bool
 	Logf  func(format string, v ...interface{})
-
-	// SkipZeroResults tells this backend to avoid erroring when we aren't
-	// able to determine if a file matches a known license. Since this
-	// particular backend is not good at general file identification, and
-	// only good at being presented with actual licenses, this is useful if
-	// file filtering is not enabled.
-	SkipZeroResults bool
 }
 
 func (obj *Scancode) String() string {
@@ -193,10 +186,7 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 	// analysis didn't discover anything
 	if len(fileResult.Licenses) == 0 {
-		if obj.SkipZeroResults {
-			return nil, nil
-		}
-		return nil, interfaces.ErrUnknownLicense
+		return nil, nil
 	}
 
 	result, err := scancodeLicensesHelper(fileResult.Licenses)

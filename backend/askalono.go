@@ -60,13 +60,6 @@ type Askalono struct {
 	Logf   func(format string, v ...interface{})
 	Prefix safepath.AbsDir
 
-	// SkipZeroResults tells this backend to avoid erroring when we aren't
-	// able to determine if a file matches a known license. Since this
-	// particular backend is not good at general file identification, and
-	// only good at being presented with actual licenses, this is useful if
-	// file filtering is not enabled.
-	SkipZeroResults bool
-
 	// binary is the path of the executable to run.
 	binary string
 }
@@ -215,12 +208,8 @@ func (obj *Askalono) ScanPath(ctx context.Context, path safepath.Path, info *int
 		return nil, fmt.Errorf("unhandled askalono error: %s", e)
 	}
 
-	if askalonoOutput.Path != filename || askalonoOutput.Result == nil {
-		// XXX: error or is SkipZeroResults what we want here?
-		if obj.SkipZeroResults {
-			return nil, nil
-		}
-		return nil, interfaces.ErrUnknownLicense
+	if askalonoOutput.Result == nil {
+		return nil, nil // didn't find anything
 	}
 
 	return askalonoResultHelper(askalonoOutput.Result)

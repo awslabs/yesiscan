@@ -111,11 +111,7 @@ func (obj *LicenseClassifier) ScanPath(ctx context.Context, path safepath.Path, 
 	results := be.GetResults()
 	if len(results) == 0 {
 		be.Close()
-		if obj.SkipZeroResults {
-			return nil, nil
-		}
-		//return nil, fmt.Errorf("couldn't classify license(s)")
-		return nil, interfaces.ErrUnknownLicense
+		return nil, nil
 	}
 
 	sort.Sort(results)

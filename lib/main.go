@@ -156,9 +156,6 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 			},
 			IncludeHeaders:       false,
 			UseDefaultConfidence: false,
-
-			// useful for testing before we add file name filtering
-			//SkipZeroResults: true,
 		}
 		backends = append(backends, licenseClassifierBackend)
 		backendWeights[licenseClassifierBackend] = 1.0 // TODO: adjust as needed
@@ -204,9 +201,6 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 				obj.Logf("backend: "+format, v...)
 			},
 			Prefix: safePrefixAbsDir,
-
-			// useful for testing before we add file name filtering
-			//SkipZeroResults: true,
 		}
 		backends = append(backends, askalonoBackend)
 		backendWeights[askalonoBackend] = 4.0 // TODO: adjust as needed
@@ -218,9 +212,6 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 			Logf: func(format string, v ...interface{}) {
 				obj.Logf("backend: "+format, v...)
 			},
-
-			// useful for testing before we add file name filtering
-			//SkipZeroResults: true,
 		}
 		backends = append(backends, scancodeBackend)
 		backendWeights[scancodeBackend] = 8.0 // TODO: adjust as needed

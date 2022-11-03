@@ -371,6 +371,7 @@ then you have to specify each backend that you want individually. You can get
 the full list of these flags with the `--help` flag.
 
 #### --auto-config-uri
+
 This is a special URI which if set, will try and pull a config from that
 location on startup. It will use the cookie file stored at
 `--auto-config-cookie-path` if specified. If successful, it will check if the
@@ -381,6 +382,7 @@ config and then run with that!
 For example: `--auto-config-uri 'https://example.com/config.json'`.
 
 #### --auto-config-cookie-path
+
 This is a special path which if set will point to a netscape/libcurl style
 cookie file to use when making the get download requests. This is useful if you
 store your config behind some gateway that needs a magic cookie for auth. It
@@ -391,12 +393,14 @@ the cookie file there.
 For example:  `--auto-config-cookie-path '~/.secret/cookie'`.
 
 #### --auto-config-expiry-seconds
+
 This value if set is the minimum number of seconds to wait between automatic
 updates of the configuration. If this is set to zero, then updates will always
 be attempted. If this is negative then updates will never be attempted unless
 forcefully request them with `--auto-config-force-update`.
 
 #### --auto-config-force-update
+
 If this flag is specified, then we will always attempt to update the auto config
 on each run.
 
@@ -411,11 +415,13 @@ can be combined with `--auto-config-force-update` for some guaranteed updates!
 When this boolean flag is enabled, all log messages will be suppressed.
 
 #### --regexp-path
+
 This is the path to the regexp rules files as used by the regexp backend. If it
 is not specified, then we will automatically look for a file in
 `~/.config/yesiscan/regexp.json`.
 
 #### --config-path
+
 This is the path to the main `config.json` file. If it is not specified, then we
 will automatically look for a file in `~/.config/yesiscan/config.json`.
 
@@ -469,6 +475,7 @@ after seven days. This is an Amazon imposed limit.
 </details>
 
 #### --region
+
 This is the S3 region that is used for uploading files to S3 buckets.
 
 #### --listen

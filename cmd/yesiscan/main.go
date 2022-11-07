@@ -427,7 +427,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	var autoConfigError error
 	if autoConfigURI != "" && (isExpired || isRecurse) { // we must try to auto config
 		logf("getting config from: %s", autoConfigURI)
-		data, err := DownloadConfig(autoConfigURI)
+		data, err := DownloadConfig(autoConfigURI, autoConfigCookiePath)
 		if err != nil {
 			return errwrap.Wrapf(err, "autoConfigURI download failed on: %s", autoConfigURI)
 		}
@@ -541,7 +541,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		v := configs[k] // key must exist
 
 		logf("getting additional config from: %s", v)
-		data, err := DownloadConfig(v)
+		data, err := DownloadConfig(v, autoConfigCookiePath)
 		if err != nil {
 			return errwrap.Wrapf(err, "autoConfigURI download failed on: %s", v)
 		}
@@ -976,7 +976,7 @@ func GetConfigPath(configPath string) (string, error) {
 }
 
 // DownloadConfig pulls a config from a magic URI and returns the contents.
-func DownloadConfig(uri string) ([]byte, error) {
+func DownloadConfig(uri, cookie string) ([]byte, error) {
 	if uri == "" {
 		return nil, fmt.Errorf("empty URI")
 	}
@@ -999,14 +999,14 @@ func DownloadConfig(uri string) ([]byte, error) {
 				}
 			}(),
 		}
-		if autoConfigCookiePath != "" {
-			p, err := homedir.Expand(autoConfigCookiePath)
+		if cookie != "" {
+			p, err := homedir.Expand(cookie)
 			if err != nil {
-				return nil, errwrap.Wrapf(err, "invalid path of: %s", autoConfigCookiePath)
+				return nil, errwrap.Wrapf(err, "invalid path of: %s", cookie)
 			}
 			cookieJar, err := cookiejarparser.LoadCookieJarFile(p)
 			if err != nil {
-				return nil, errwrap.Wrapf(err, "error loading cookie from: %s", autoConfigCookiePath)
+				return nil, errwrap.Wrapf(err, "error loading cookie from: %s", cookie)
 			}
 			client.Jar = cookieJar
 		}

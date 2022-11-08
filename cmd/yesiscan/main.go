@@ -195,6 +195,15 @@ func CLI(program, version string, debug bool) error {
 
 		Commands: []*cli.Command{
 			{
+				Name:    "version",
+				Aliases: []string{"version"},
+				Usage:   "print the version",
+				Action: func(c *cli.Context) error {
+					fmt.Printf("%s\n", version)
+					return nil
+				},
+			},
+			{
 				Name:    "web",
 				Aliases: []string{"web"},
 				Usage:   "launch a web server mode",

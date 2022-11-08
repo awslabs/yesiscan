@@ -324,6 +324,7 @@ supported:
 * `auto-config-cookie-path`
 * `auto-config-expiry-seconds`
 * `auto-config-force-update`
+* `auto-config-binary-version`
 * `quiet`
 * `regexp-path`
 * `output-type`
@@ -333,6 +334,7 @@ supported:
 * `region`,
 * `profiles`
 * `backends`
+* `binaries`
 * `configs`
 These keys should all be the top-level keys in a single json dictionary. More
 information on some of these keys are described below.
@@ -349,6 +351,15 @@ values representing the enabled state of that backend. If you don't specify a
 backend here, then whether or not that backend will be enabled or not is
 undefined and will depend on which backend flags you use. As a result, it is
 always recommended to be explicit about which backends you want to enable.
+
+#### "binaries"
+
+This key is a map which lists the available binaries for a particular `yesiscan`
+version. The value of each map is a direct URI to the binary in question. The
+keys in this map have the following pattern: `$OS-$ARCH-$VERSION` where `$OS` is
+the specific operating system used, such as `linux`, `darwin`, or `windows`, and
+where `$ARCH` might be `amd64` or `arm64`, and where `$VERSION` is the special
+short version string as seen by running the program with the `version` arg.
 
 #### "configs"
 
@@ -403,6 +414,14 @@ forcefully request them with `--auto-config-force-update`.
 
 If this flag is specified, then we will always attempt to update the auto config
 on each run.
+
+#### --auto-config-binary-version
+
+If this flag is specified, we will attempt to replace the current binary with
+this version of the program if it exists in our config. To override this setting
+in the remote config, you can specify this with the empty string `''` as the arg
+so that we will avoid replacing the requested version. These versions are stored
+in a giant map in the main config file in the `binaries` section shown above.
 
 #### --noop
 

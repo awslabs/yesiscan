@@ -38,12 +38,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/awslabs/yesiscan/interfaces"
@@ -81,6 +83,12 @@ const (
 	// various main settings that we want.
 	ConfigFileName = "config.json"
 
+	// BinariesDir is the child directory where binaries are stored. This is
+	// currently under the ~/.config/ namespace instead of ~/.cache/ because
+	// it is much simpler to implement. Long-term when full XDG support is
+	// added it would make sense to move it.
+	BinariesDir = "binaries/"
+
 	// MaxRedirects is the maximum number of redirects to allow for http
 	// download operations. The internal golang maximum of ten is too low
 	// for many situations. Firefox sets network.http.redirection-limit as
@@ -107,6 +115,10 @@ func CLI(program, version string, debug bool) error {
 		&cli.BoolFlag{
 			Name:  "auto-config-force-update",
 			Usage: "force an auto config re-download",
+		},
+		&cli.StringFlag{
+			Name:  "auto-config-binary-version",
+			Usage: "specify a version of yesiscan to use",
 		},
 		&cli.BoolFlag{
 			Name:  "noop",
@@ -235,6 +247,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	bigIntStr := "" // for our int
 	var autoConfigExpirySeconds int
 	var autoConfigForceUpdate bool
+	var autoConfigBinaryVersion string
 	var quiet bool
 	var ansiMagic bool
 	var regexpPath string
@@ -247,6 +260,7 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	profiles := []string{}
 	configs := make(map[string]string)
 	backends := make(map[string]bool)
+	binaries := make(map[string]string)
 
 	// load from main config file or xdg if config is empty
 	config, err := GetConfig(c.String("config-path"))
@@ -269,6 +283,10 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		if config.AutoConfigForceUpdate != nil {
 			// set this global var
 			autoConfigForceUpdate = *config.AutoConfigForceUpdate
+		}
+		if config.AutoConfigBinaryVersion != nil {
+			// set this global var
+			autoConfigBinaryVersion = *config.AutoConfigBinaryVersion
 		}
 		if config.Quiet != nil {
 			quiet = *config.Quiet
@@ -312,6 +330,11 @@ func App(c *cli.Context, program, version string, debug bool) error {
 				backends[k] = v // copy
 			}
 		}
+		if config.Binaries != nil {
+			for k, v := range *config.Binaries {
+				binaries[k] = v // copy
+			}
+		}
 	}
 
 	// Command line options override anything in the config.
@@ -326,6 +349,9 @@ func App(c *cli.Context, program, version string, debug bool) error {
 	}
 	if c.IsSet("auto-config-force-update") {
 		autoConfigForceUpdate = c.Bool("auto-config-force-update")
+	}
+	if c.IsSet("auto-config-binary-version") {
+		autoConfigBinaryVersion = c.String("auto-config-binary-version")
 	}
 	if c.IsSet("quiet") {
 		quiet = c.Bool("quiet")
@@ -609,6 +635,128 @@ func App(c *cli.Context, program, version string, debug bool) error {
 		return App(c, program, version, debug)
 	}
 
+	// Are we requesting a specific version?
+	if autoConfigBinaryVersion != "" && version == autoConfigBinaryVersion && autoConfigError == nil {
+		logf("%s matches the recommended version of: %s", program, autoConfigBinaryVersion)
+	}
+	if autoConfigBinaryVersion != "" && version != autoConfigBinaryVersion && autoConfigError == nil {
+		logf("%s does NOT match the recommended version of: %s", program, autoConfigBinaryVersion)
+		configPath, err := GetConfigPath(c.String("config-path"))
+		if err != nil {
+			return err
+		}
+		uid := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, autoConfigBinaryVersion)
+		bin := fmt.Sprintf("yesiscan-%s", uid)
+		bDir := filepath.Join(filepath.Dir(configPath), BinariesDir)
+		bPath := filepath.Join(bDir, bin)
+
+		rm := func() error {
+			return os.Remove(bPath)
+		}
+
+		// Run `$binary version` and check the version matches.
+		run := func() (string, error) {
+			args := []string{"version"}
+			prog := fmt.Sprintf("%s %s", bPath, strings.Join(args, " "))
+			logf("running: %s", prog)
+
+			// TODO: do we need to do the ^C handling?
+			cmd := exec.CommandContext(ctx, bPath, args...)
+			cmd.Dir = ""
+			cmd.Env = []string{}
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Setpgid: true,
+				Pgid:    0,
+			}
+
+			stdoutStderr, err := cmd.CombinedOutput() // calls Run()
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimSpace(string(stdoutStderr)), nil
+		}
+
+		// TODO: does this need to end with .exe for windows?
+		bURI, exists := binaries[uid] // uri for binary
+		if !exists {
+			logf("could not find version %s to automatically update to", autoConfigBinaryVersion)
+			logf("consider running with --auto-config-binary-version '' or update your config with --auto-config-force-update")
+
+		} else {
+			// Do we already have a valid binary cached?
+			stdoutStderr, runErr := run()
+			if runErr != nil { // on error, do the download...
+				// auto-download new version...
+				logf("downloading binary from: %s", bURI)
+				data, err := DownloadConfig(bURI, autoConfigCookiePath)
+				if err != nil {
+					return errwrap.Wrapf(err, "autoConfigBinaryVersion download failed on: %s", bURI)
+				}
+				if len(data) == 0 {
+					return fmt.Errorf("got zero-length data from: %s", bURI)
+				}
+
+				logf("writing new binary to: %s", bPath)
+				d := filepath.Dir(bPath)
+				// maybe the ~/.config/yesiscan/binaries/ dir doesn't exist yet!
+				if _, err := os.Stat(d); os.IsNotExist(err) { // no config exists here...
+					if err := os.MkdirAll(d, interfaces.Umask); err != nil {
+						return errwrap.Wrapf(err, "couldn't make binaries dir at: %s", d)
+					}
+				}
+
+				// XXX: set umask for u=rwx,go=rx
+				if err := os.WriteFile(bPath, data, 0777); err != nil {
+					return errwrap.Wrapf(err, "autoConfigURI store binary failed on: %s", bPath)
+				}
+				stdoutStderr, runErr = run() // now try again
+			}
+			if runErr != nil {
+				logf("consider running with --auto-config-binary-version '' or update your config with --auto-config-force-update")
+				if e, ok := err.(*exec.Error); ok && e.Err == exec.ErrNotFound {
+					return errwrap.Wrapf(err, "could not find binary to run at: %s", bPath)
+				}
+
+				// If it doesn't work then delete the file... We
+				// Maybe we downloaded a 404 page?
+				logf("removing unexecutable binary from: %s", bPath)
+				if e := rm(); e != nil {
+					e := errwrap.Append(e, err)
+					return errwrap.Wrapf(e, "could not remove unexecutable binary from: %s", bPath)
+				}
+
+				return errwrap.Wrapf(err, "could not run binary at: %s", bPath)
+			}
+
+			// Check the version matches. If not, delete the file.
+			if v := stdoutStderr; v != autoConfigBinaryVersion {
+				logf("invalid binary found, expected version: %s", autoConfigBinaryVersion)
+				logf("consider running with --auto-config-binary-version '' or update your config with --auto-config-force-update")
+				logf("removing unknown binary with version: %s", v)
+				if err := rm(); err != nil {
+					return errwrap.Wrapf(err, "could not remove incorrect binary from: %s", bPath)
+				}
+			}
+		}
+
+		logf("new version (%s) of %s is recommended!", autoConfigBinaryVersion, program)
+
+		if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+			logf("please update %s to version %s", program, autoConfigBinaryVersion)
+			if exists {
+				logf("a copy of this new binary is located at: %s", bPath)
+			}
+			return nil
+
+		} else {
+			// exec (replace) with this other version if we can...
+			logf("attempting to run new %s, version %s", program, autoConfigBinaryVersion)
+			if err := syscall.Exec(bPath, os.Args, os.Environ()); err != nil {
+				return errwrap.Wrapf(err, "exec version %s failed", autoConfigBinaryVersion)
+			}
+		}
+	}
+
 	if outputPath == "-" || outputTemplate == "-" || quiet { // if output is stdout, noop logs
 		logf = func(format string, v ...interface{}) {
 			// noop
@@ -874,6 +1022,10 @@ type Config struct {
 	// possible to do so.
 	AutoConfigForceUpdate *bool `json:"auto-config-force-update"`
 
+	// AutoConfigBinaryVersion specifies a specific version of this program
+	// to execute.
+	AutoConfigBinaryVersion *string `json:"auto-config-binary-version"`
+
 	// Quiet will prevent the tool from talking too much on the console.
 	// This is implied if you use the stdout option of --output-path.
 	Quiet *bool `json:"quiet"`
@@ -929,6 +1081,11 @@ type Config struct {
 	// false that it is not enabled. If it not listed then its behaviour is
 	// undefined.
 	Backends map[string]bool `json:"backends"`
+
+	// Binaries is a map of unique binary identifier to binary download
+	// path. The unique binary identifier is in the format: "%s-%s-%s" where
+	// the three substitutions are GOOS, GOARCH, and program version.
+	Binaries *map[string]string `json:"binaries"`
 }
 
 // GetConfig loads the config file data into a struct.
@@ -964,6 +1121,7 @@ func GetConfig(p string) (*Config, error) {
 
 // GetConfigPath returns the expected path to the main config.json file given
 // the input arg for that setting.
+// FIXME: switch to using types (at least for the return type) from safepath lib
 func GetConfigPath(configPath string) (string, error) {
 	// If config path is set, we look in there for a config, otherwise we
 	// use the default xdg path.

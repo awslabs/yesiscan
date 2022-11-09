@@ -72,10 +72,13 @@ func (obj *Pom) ScanData(ctx context.Context, data []byte, info *interfaces.Info
 
 	// parsing pom.xml file to get license names in struct
 	if err := xml.Unmarshal(data, &pomFileLicenses); err != nil {
-		// NOTE: This is NOT the same as as interfaces.ErrUnknownLicense since here we
-		// are checking if any error takes place while parsing the xml file for
-		// license names.
-		return nil, errwrap.Wrapf(err, "parse error")
+		// There is a parse error with the file, so we can't properly
+		// examine it for licensing information with this pom scanner.
+		result := &interfaces.Result{
+			Confidence: 1.0, // TODO: what should we put here?
+			Skip:       errwrap.Wrapf(err, "parse error"),
+		}
+		return result, nil
 	}
 
 	if len(pomFileLicenses.Names) == 0 {

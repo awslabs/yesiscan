@@ -1058,7 +1058,7 @@ func ReturnOutputHtmlBody(output *lib.Output) (string, error) {
 
 	str := ""
 	for _, x := range output.Profiles {
-		pro, err := lib.SimpleProfiles(output.Results, output.Passes, output.ProfilesData[x], displaySummary, output.BackendWeights, "html")
+		pro, err := lib.SimpleProfiles(output.Results, output.Passes, output.Warnings, output.ProfilesData[x], displaySummary, output.BackendWeights, "html")
 		if err != nil {
 			return "", err
 		}

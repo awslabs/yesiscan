@@ -218,7 +218,17 @@ func (obj *Zip) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 	// Open the zip archive for reading.
 	// FIXME: use a variant that can take a context
 	z, err := zip.OpenReader(obj.Path.Path())
-	if err != nil {
+	if err == zip.ErrFormat || err == zip.ErrAlgorithm || err == zip.ErrChecksum {
+		// Return an "iterator error" instead! This is a magic error
+		// that tells the caller that we don't want to nuke the entire
+		// scan for one unimportant error! Instead we bubble up and
+		// collect this information to return to the user.
+		return nil, &interfaces.IteratorError{
+			Path: obj.Path.Path(),
+			Err: err,
+		}
+
+	} else if err != nil {
 		obj.unlock()
 		return nil, errwrap.Wrapf(err, "error opening path %s", obj.Path)
 	}

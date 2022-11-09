@@ -72,7 +72,7 @@ type ProfileData struct {
 // filter function created and is mostly used for an initial POC. It is the
 // more complicated successor to the SimpleResults function. Style can be
 // `ansi`, `html`, or `text`.
-func SimpleProfiles(results interfaces.ResultSet, passes []string, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
+func SimpleProfiles(results interfaces.ResultSet, passes []string, warnings map[string]error, profile *ProfileData, summary bool, backendWeights map[interfaces.Backend]float64, style string) (string, error) {
 	if style != "ansi" && style != "html" && style != "text" {
 		return "", fmt.Errorf("invalid style: %s", style)
 	}
@@ -304,6 +304,32 @@ Loop:
 		}
 	}
 
+	warningStr := ""
+	if len(warnings) > 0 { // keep it in scope
+		names := []string{}
+		for k := range warnings { // map[string]error
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		if style == "ansi" || style == "text" {
+			s := "errors:\n"
+			for _, x := range names {
+				s += fmt.Sprintf("%s: %s\n", x, redString(warnings[x].Error()))
+			}
+			warningStr = s
+		}
+		if style == "html" {
+			s := `<tr><td><table id="summary">`
+			s += `<tr><th colspan="2">errors:</th></tr>`
+			for _, x := range names {
+				s += fmt.Sprintf("<tr><td>%s</td><td>%s</td></tr>", x, redString(warnings[x].Error()))
+			}
+
+			s += "</table></td></tr>"
+			warningStr = s
+		}
+	}
+
 	noResultsStr := ""
 	if !hasResults {
 		noResultsStr = "<no results>"
@@ -345,7 +371,7 @@ Loop:
 		summaryStr = ""
 	}
 	// glue it all together
-	str = skippedStr + erroredStr + summaryStr + noResultsStr + str
+	str = skippedStr + warningStr + erroredStr + summaryStr + noResultsStr + str
 
 	return str, nil
 }

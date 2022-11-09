@@ -322,16 +322,17 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		Logf: func(format string, v ...interface{}) {
 			obj.Logf("core: "+format, v...)
 		},
-		Backends:        backends,
-		Iterators:       iterators, // TODO: should this be passed into Run instead?
-		ShutdownOnError: false,     // set to true for "perfect" scanning.
+		Backends:  backends,
+		Iterators: iterators, // TODO: should this be passed into Run instead?
+		// XXX: deprecate this because we have IteratorError now...
+		ShutdownOnError: false, // set to true for "perfect" scanning.
 	}
 
 	if err := core.Init(ctx); err != nil {
 		return nil, errwrap.Wrapf(err, "could not initialize core")
 	}
 
-	results, passes, err := core.Run(ctx)
+	results, passes, warnings, err := core.Run(ctx)
 	if err != nil {
 		return nil, errwrap.Wrapf(err, "core run failed")
 	}
@@ -355,6 +356,7 @@ func (obj *Main) Run(ctx context.Context) (*Output, error) {
 		Backends:       obj.Backends,
 		Results:        results,
 		Passes:         passes,
+		Warnings:       warnings,
 		Profiles:       profiles,
 		ProfilesData:   profilesData,
 		BackendWeights: backendWeights,
@@ -372,6 +374,7 @@ type Output struct {
 	Backends       map[string]bool
 	Results        map[string]map[interfaces.Backend]*interfaces.Result
 	Passes         []string
+	Warnings       map[string]error
 	Profiles       []string
 	ProfilesData   map[string]*ProfileData
 	BackendWeights map[interfaces.Backend]float64
@@ -382,7 +385,7 @@ func ReturnOutputConsole(output *Output) (string, error) {
 	s := ""
 	summary := true // TODO: perhaps configure this somewhere or as a flag?
 	for _, x := range output.Profiles {
-		pro, err := SimpleProfiles(output.Results, output.Passes, output.ProfilesData[x], summary, output.BackendWeights, "ansi")
+		pro, err := SimpleProfiles(output.Results, output.Passes, output.Warnings, output.ProfilesData[x], summary, output.BackendWeights, "ansi")
 		if err != nil {
 			return "", err
 		}
@@ -398,7 +401,7 @@ func ReturnOutputFile(output *Output) (string, error) {
 	s := ""
 	summary := true // TODO: perhaps configure this somewhere or as a flag?
 	for _, x := range output.Profiles {
-		pro, err := SimpleProfiles(output.Results, output.Passes, output.ProfilesData[x], summary, output.BackendWeights, "text")
+		pro, err := SimpleProfiles(output.Results, output.Passes, output.Warnings, output.ProfilesData[x], summary, output.BackendWeights, "text")
 		if err != nil {
 			return "", err
 		}

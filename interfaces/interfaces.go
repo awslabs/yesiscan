@@ -43,6 +43,21 @@ type Error string
 // Error fulfills the error interface of this type.
 func (e Error) Error() string { return string(e) }
 
+// IteratorError is a special error that allows an iterator to tell the caller
+// that something went wrong, but that it isn't fatal for the whole program.
+type IteratorError struct {
+	// Path is the string path of what caused the error.
+	Path string
+
+	// Err is the actual error that should be reported.
+	Err error
+}
+
+// Error fulfills the error interface of this type.
+func (obj *IteratorError) Error() string {
+	return fmt.Sprintf("%s at %s", obj.Err, obj.Path)
+}
+
 const (
 	// ErrUnknownLicense should be returned by any backend when it can't
 	// identify the license that a particular file is under. This is a

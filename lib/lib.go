@@ -92,9 +92,11 @@ func (obj *Core) Init(ctx context.Context) error {
 // process... There's also no reason that we can't even add the same backend in
 // twice with different params passed to it, as long as each is thread-safe and
 // doesn't incorrectly misuse global state.
-func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error) {
+func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, map[string]error, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // can be safely called more than once
+
+	mu := &sync.Mutex{} // guards list of iteratorErrors
 
 	iterators := []interfaces.Iterator{} // list of all iterators
 	iterators = append(iterators, obj.Iterators...)
@@ -103,6 +105,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 
 	allResultSets := make(map[string]map[interfaces.Backend]*interfaces.Result)
 	allPasses := make(map[string]struct{})
+	iteratorErrors := make(map[string]error) // non-fatal iterator errors
 	resultErrors := []error{}
 
 	wg := &sync.WaitGroup{}
@@ -174,7 +177,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 			Backends: obj.Backends,
 		}
 		if err := scanner.Init(); err != nil {
-			return nil, nil, errwrap.Wrapf(err, "scanner init failed")
+			return nil, nil, nil, errwrap.Wrapf(err, "scanner init failed")
 		}
 		defer scanner.Result() // Wait()
 		//scanners = append(scanners, scanner)
@@ -183,7 +186,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 			obj.Logf("running iterator(%d): %s", i, x)
 		}
 		if err := x.Validate(); err != nil {
-			return nil, nil, errwrap.Wrapf(err, "iterator validate failed")
+			return nil, nil, nil, errwrap.Wrapf(err, "iterator validate failed")
 		}
 
 		// Mechanism to end this long iterator loop early if needed...
@@ -204,10 +207,19 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 		if obj.Debug {
 			obj.Logf("recurse(%d) done", i)
 		}
-		if err != nil {
+		if e, ok := err.(*interfaces.IteratorError); ok {
+			mu.Lock()
+			if err, exists := iteratorErrors[e.Path]; exists {
+				// TODO: should err and e.Err be swapped?
+				e.Err = errwrap.Append(e.Err, err)
+			}
+			iteratorErrors[e.Path] = e.Err
+			mu.Unlock()
+
+		} else if err != nil {
 			if obj.ShutdownOnError {
 				// this will trigger the ctx cancel() in defer
-				return nil, nil, errwrap.Wrapf(err, "recurse error with: %s", x)
+				return nil, nil, nil, errwrap.Wrapf(err, "recurse error with: %s", x)
 			}
 			errors = append(errors, err)
 			continue
@@ -238,7 +250,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 		for _, e := range errors {
 			ea = errwrap.Append(ea, e)
 		}
-		return nil, nil, errwrap.Wrapf(ea, "core run errored")
+		return nil, nil, nil, errwrap.Wrapf(ea, "core run errored")
 	}
 
 	obj.Logf("scanning complete!") // clears the last "scanning: ..." message
@@ -256,7 +268,7 @@ func (obj *Core) Run(ctx context.Context) (interfaces.ResultSet, []string, error
 	sort.Strings(passes)
 
 	// TODO: return a big struct instead?
-	return allResultSets, passes, nil
+	return allResultSets, passes, iteratorErrors, nil
 }
 
 // Scanner is functionality that encapsulates the running of each backend. It

@@ -285,7 +285,15 @@ func (obj *Bzip2) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]inte
 
 	// FIXME: use a variant that can take a context
 	size, err := io.Copy(dest, z)
-	if err != nil {
+	if e, ok := err.(bzip2.StructuralError); ok {
+		dest.Close() // close dest file on error!
+		obj.unlock()
+		return nil, &interfaces.IteratorError{
+			Path: obj.Path.Path(),
+			Err:  errwrap.Wrapf(e, "error decompressing bzip2"),
+		}
+
+	} else if err != nil {
 		dest.Close() // close dest file on error!
 		obj.unlock()
 		return nil, errwrap.Wrapf(err, "error writing our file to disk at %s", absFile)

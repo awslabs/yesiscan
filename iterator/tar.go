@@ -253,6 +253,18 @@ func (obj *Tar) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 		if err == io.EOF {
 			break // End of archive
 		}
+		if err == tar.ErrHeader || err == io.ErrUnexpectedEOF || err == tar.ErrFieldTooLong {
+			obj.unlock()
+			// Return an "iterator error" instead! This is a magic
+			// error that tells the caller that we don't want to
+			// nuke the entire scan for one unimportant error!
+			// Instead we bubble up and collect this information to
+			// return to the user.
+			return nil, &interfaces.IteratorError{
+				Path: obj.Path.Path(),
+				Err:  err,
+			}
+		}
 		if err != nil {
 			obj.unlock()
 			return nil, errwrap.Wrapf(err, "unknown tar error on Next")
@@ -377,6 +389,7 @@ func (obj *Tar) Recurse(ctx context.Context, scan interfaces.ScanFunc) ([]interf
 		// don't `defer` close here because we want to free in the loop
 
 		// FIXME: use a variant that can take a context
+		// XXX: do we see ErrFieldTooLong here? (return IteratorError)
 		size, err := io.Copy(dest, z)
 		if err != nil {
 			dest.Close() // close dest file on error!

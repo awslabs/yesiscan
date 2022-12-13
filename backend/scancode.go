@@ -154,6 +154,7 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 	}
 
 	var fileResult *ScancodeFileResult
+	errors := []error{}
 	for _, x := range scancodeOutput.Files {
 
 		// TODO: is this how this works?
@@ -171,25 +172,43 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 			continue
 		}
 
-		if x.Path != filename {
-			obj.Logf("scancode got unexpected file: %s", filename)
+		p := x.Path
+		// some versions of scancode are apparently not including this!
+		if !strings.HasPrefix(p, "/") {
+			p += "/"
+		}
+		if p != filename {
+			e := fmt.Errorf("was expecting file: %s; got unexpected file: %s", filename, p)
+			errors = append(errors, e)
 			continue
 		}
 
 		if fileResult != nil {
-			obj.Logf("got path: %s", x.Path)
+			obj.Logf("got path: %s", p)
 			obj.Logf("got path: %s", fileResult.Path)
 			return nil, fmt.Errorf("scancode got multiple files")
 		}
 		fileResult = x // found
 	}
 
-	// analysis didn't discover anything
-	if len(fileResult.Licenses) == 0 {
+	var skip error
+	for _, e := range errors {
+		skip = errwrap.Append(skip, e)
+	}
+
+	// analysis didn't discover anything and/or we hit a continue somewhere!
+	if fileResult == nil || len(fileResult.Licenses) == 0 {
+		if len(errors) > 0 {
+			return &interfaces.Result{
+				Licenses:   []*licenses.License{},
+				Confidence: 1.0,
+				Skip:       skip,
+			}, nil
+		}
 		return nil, nil
 	}
 
-	result, err := scancodeLicensesHelper(fileResult.Licenses)
+	result, err := scancodeLicensesHelper(fileResult.Licenses, skip)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +477,7 @@ type ScancodeLicenseResult struct {
 	MatchedRule interface{} `json:"matched_rule"`
 }
 
-func scancodeLicensesHelper(input []*ScancodeLicenseResult) (*interfaces.Result, error) {
+func scancodeLicensesHelper(input []*ScancodeLicenseResult, skip error) (*interfaces.Result, error) {
 	// this should get called with at least one license
 	if len(input) == 0 {
 		return nil, fmt.Errorf("got empty result")
@@ -493,6 +512,7 @@ func scancodeLicensesHelper(input []*ScancodeLicenseResult) (*interfaces.Result,
 	return &interfaces.Result{
 		Licenses:   output,
 		Confidence: confidence,
+		Skip:       skip,
 	}, nil
 }
 
@@ -545,5 +565,6 @@ func deduplicateResult(input *interfaces.Result) (*interfaces.Result, error) {
 	return &interfaces.Result{
 		Licenses:   output,
 		Confidence: input.Confidence,
+		Skip:       input.Skip,
 	}, nil
 }

@@ -174,7 +174,7 @@ func (obj *Scancode) ScanPath(ctx context.Context, path safepath.Path, info *int
 
 		p := x.Path
 		// some versions of scancode are apparently not including this!
-		if !strings.HasPrefix(p, "/") {
+		if !strings.HasPrefix(p, "/") && strings.HasPrefix(filename, "/") {
 			p += "/"
 		}
 		if p != filename {

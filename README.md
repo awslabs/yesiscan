@@ -4,6 +4,13 @@
 
 [![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/awslabs/yesiscan/)
 
+## Status
+
+The original author and maintainer ([James / @purpleidea](https://purpleidea.com/))
+has left Amazon and the project is currently unmaintained. If you are
+interested in this project please either contact Amazon, or the original author
+who has a mirror at: [yesiscan](https://github.com/purpleidea/yesiscan/).
+
 ## About
 
 `yesiscan` is a tool for performing automated license scanning. It usually
